@@ -21514,7 +21514,7 @@ var router = exports.router = new _vueRouter2.default({
 "use strict";
 Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /*!
-  * vue-router v3.0.7
+  * vue-router v3.1.1
   * (c) 2019 Evan You
   * @license MIT
   */
@@ -21534,6 +21534,14 @@ function warn (condition, message) {
 
 function isError (err) {
   return Object.prototype.toString.call(err).indexOf('Error') > -1
+}
+
+function isExtendedError (constructor, err) {
+  return (
+    err instanceof constructor ||
+    // _name is to support IE9 too
+    (err && (err.name === constructor.name || err._name === constructor._name))
+  )
 }
 
 function extend (a, b) {
@@ -21902,200 +21910,6 @@ function queryIncludes (current, target) {
   }
   return true
 }
-
-/*  */
-
-// work around weird flow bug
-var toTypes = [String, Object];
-var eventTypes = [String, Array];
-
-var Link = {
-  name: 'RouterLink',
-  props: {
-    to: {
-      type: toTypes,
-      required: true
-    },
-    tag: {
-      type: String,
-      default: 'a'
-    },
-    exact: Boolean,
-    append: Boolean,
-    replace: Boolean,
-    activeClass: String,
-    exactActiveClass: String,
-    event: {
-      type: eventTypes,
-      default: 'click'
-    }
-  },
-  render: function render (h) {
-    var this$1 = this;
-
-    var router = this.$router;
-    var current = this.$route;
-    var ref = router.resolve(this.to, current, this.append);
-    var location = ref.location;
-    var route = ref.route;
-    var href = ref.href;
-
-    var classes = {};
-    var globalActiveClass = router.options.linkActiveClass;
-    var globalExactActiveClass = router.options.linkExactActiveClass;
-    // Support global empty active class
-    var activeClassFallback = globalActiveClass == null
-      ? 'router-link-active'
-      : globalActiveClass;
-    var exactActiveClassFallback = globalExactActiveClass == null
-      ? 'router-link-exact-active'
-      : globalExactActiveClass;
-    var activeClass = this.activeClass == null
-      ? activeClassFallback
-      : this.activeClass;
-    var exactActiveClass = this.exactActiveClass == null
-      ? exactActiveClassFallback
-      : this.exactActiveClass;
-    var compareTarget = location.path
-      ? createRoute(null, location, null, router)
-      : route;
-
-    classes[exactActiveClass] = isSameRoute(current, compareTarget);
-    classes[activeClass] = this.exact
-      ? classes[exactActiveClass]
-      : isIncludedRoute(current, compareTarget);
-
-    var handler = function (e) {
-      if (guardEvent(e)) {
-        if (this$1.replace) {
-          router.replace(location);
-        } else {
-          router.push(location);
-        }
-      }
-    };
-
-    var on = { click: guardEvent };
-    if (Array.isArray(this.event)) {
-      this.event.forEach(function (e) { on[e] = handler; });
-    } else {
-      on[this.event] = handler;
-    }
-
-    var data = {
-      class: classes
-    };
-
-    if (this.tag === 'a') {
-      data.on = on;
-      data.attrs = { href: href };
-    } else {
-      // find the first <a> child and apply listener and href
-      var a = findAnchor(this.$slots.default);
-      if (a) {
-        // in case the <a> is a static node
-        a.isStatic = false;
-        var aData = a.data = extend({}, a.data);
-        aData.on = on;
-        var aAttrs = a.data.attrs = extend({}, a.data.attrs);
-        aAttrs.href = href;
-      } else {
-        // doesn't have <a> child, apply listener to self
-        data.on = on;
-      }
-    }
-
-    return h(this.tag, data, this.$slots.default)
-  }
-}
-
-function guardEvent (e) {
-  // don't redirect with control keys
-  if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) { return }
-  // don't redirect when preventDefault called
-  if (e.defaultPrevented) { return }
-  // don't redirect on right click
-  if (e.button !== undefined && e.button !== 0) { return }
-  // don't redirect if `target="_blank"`
-  if (e.currentTarget && e.currentTarget.getAttribute) {
-    var target = e.currentTarget.getAttribute('target');
-    if (/\b_blank\b/i.test(target)) { return }
-  }
-  // this may be a Weex event which doesn't have this method
-  if (e.preventDefault) {
-    e.preventDefault();
-  }
-  return true
-}
-
-function findAnchor (children) {
-  if (children) {
-    var child;
-    for (var i = 0; i < children.length; i++) {
-      child = children[i];
-      if (child.tag === 'a') {
-        return child
-      }
-      if (child.children && (child = findAnchor(child.children))) {
-        return child
-      }
-    }
-  }
-}
-
-var _Vue;
-
-function install (Vue) {
-  if (install.installed && _Vue === Vue) { return }
-  install.installed = true;
-
-  _Vue = Vue;
-
-  var isDef = function (v) { return v !== undefined; };
-
-  var registerInstance = function (vm, callVal) {
-    var i = vm.$options._parentVnode;
-    if (isDef(i) && isDef(i = i.data) && isDef(i = i.registerRouteInstance)) {
-      i(vm, callVal);
-    }
-  };
-
-  Vue.mixin({
-    beforeCreate: function beforeCreate () {
-      if (isDef(this.$options.router)) {
-        this._routerRoot = this;
-        this._router = this.$options.router;
-        this._router.init(this);
-        Vue.util.defineReactive(this, '_route', this._router.history.current);
-      } else {
-        this._routerRoot = (this.$parent && this.$parent._routerRoot) || this;
-      }
-      registerInstance(this, this);
-    },
-    destroyed: function destroyed () {
-      registerInstance(this);
-    }
-  });
-
-  Object.defineProperty(Vue.prototype, '$router', {
-    get: function get () { return this._routerRoot._router }
-  });
-
-  Object.defineProperty(Vue.prototype, '$route', {
-    get: function get () { return this._routerRoot._route }
-  });
-
-  Vue.component('RouterView', View);
-  Vue.component('RouterLink', Link);
-
-  var strats = Vue.config.optionMergeStrategies;
-  // use the same hook merging strategy for route hooks
-  strats.beforeRouteEnter = strats.beforeRouteLeave = strats.beforeRouteUpdate = strats.created;
-}
-
-/*  */
-
-var inBrowser = typeof window !== 'undefined';
 
 /*  */
 
@@ -22634,171 +22448,6 @@ function fillParams (
 
 /*  */
 
-function createRouteMap (
-  routes,
-  oldPathList,
-  oldPathMap,
-  oldNameMap
-) {
-  // the path list is used to control path matching priority
-  var pathList = oldPathList || [];
-  // $flow-disable-line
-  var pathMap = oldPathMap || Object.create(null);
-  // $flow-disable-line
-  var nameMap = oldNameMap || Object.create(null);
-
-  routes.forEach(function (route) {
-    addRouteRecord(pathList, pathMap, nameMap, route);
-  });
-
-  // ensure wildcard routes are always at the end
-  for (var i = 0, l = pathList.length; i < l; i++) {
-    if (pathList[i] === '*') {
-      pathList.push(pathList.splice(i, 1)[0]);
-      l--;
-      i--;
-    }
-  }
-
-  return {
-    pathList: pathList,
-    pathMap: pathMap,
-    nameMap: nameMap
-  }
-}
-
-function addRouteRecord (
-  pathList,
-  pathMap,
-  nameMap,
-  route,
-  parent,
-  matchAs
-) {
-  var path = route.path;
-  var name = route.name;
-  if (true) {
-    assert(path != null, "\"path\" is required in a route configuration.");
-    assert(
-      typeof route.component !== 'string',
-      "route config \"component\" for path: " + (String(path || name)) + " cannot be a " +
-      "string id. Use an actual component instead."
-    );
-  }
-
-  var pathToRegexpOptions = route.pathToRegexpOptions || {};
-  var normalizedPath = normalizePath(
-    path,
-    parent,
-    pathToRegexpOptions.strict
-  );
-
-  if (typeof route.caseSensitive === 'boolean') {
-    pathToRegexpOptions.sensitive = route.caseSensitive;
-  }
-
-  var record = {
-    path: normalizedPath,
-    regex: compileRouteRegex(normalizedPath, pathToRegexpOptions),
-    components: route.components || { default: route.component },
-    instances: {},
-    name: name,
-    parent: parent,
-    matchAs: matchAs,
-    redirect: route.redirect,
-    beforeEnter: route.beforeEnter,
-    meta: route.meta || {},
-    props: route.props == null
-      ? {}
-      : route.components
-        ? route.props
-        : { default: route.props }
-  };
-
-  if (route.children) {
-    // Warn if route is named, does not redirect and has a default child route.
-    // If users navigate to this route by name, the default child will
-    // not be rendered (GH Issue #629)
-    if (true) {
-      if (route.name && !route.redirect && route.children.some(function (child) { return /^\/?$/.test(child.path); })) {
-        warn(
-          false,
-          "Named Route '" + (route.name) + "' has a default child route. " +
-          "When navigating to this named route (:to=\"{name: '" + (route.name) + "'\"), " +
-          "the default child route will not be rendered. Remove the name from " +
-          "this route and use the name of the default child route for named " +
-          "links instead."
-        );
-      }
-    }
-    route.children.forEach(function (child) {
-      var childMatchAs = matchAs
-        ? cleanPath((matchAs + "/" + (child.path)))
-        : undefined;
-      addRouteRecord(pathList, pathMap, nameMap, child, record, childMatchAs);
-    });
-  }
-
-  if (route.alias !== undefined) {
-    var aliases = Array.isArray(route.alias)
-      ? route.alias
-      : [route.alias];
-
-    aliases.forEach(function (alias) {
-      var aliasRoute = {
-        path: alias,
-        children: route.children
-      };
-      addRouteRecord(
-        pathList,
-        pathMap,
-        nameMap,
-        aliasRoute,
-        parent,
-        record.path || '/' // matchAs
-      );
-    });
-  }
-
-  if (!pathMap[record.path]) {
-    pathList.push(record.path);
-    pathMap[record.path] = record;
-  }
-
-  if (name) {
-    if (!nameMap[name]) {
-      nameMap[name] = record;
-    } else if ("development" !== 'production' && !matchAs) {
-      warn(
-        false,
-        "Duplicate named routes definition: " +
-        "{ name: \"" + name + "\", path: \"" + (record.path) + "\" }"
-      );
-    }
-  }
-}
-
-function compileRouteRegex (path, pathToRegexpOptions) {
-  var regex = pathToRegexp_1(path, [], pathToRegexpOptions);
-  if (true) {
-    var keys = Object.create(null);
-    regex.keys.forEach(function (key) {
-      warn(!keys[key.name], ("Duplicate param keys in route with path: \"" + path + "\""));
-      keys[key.name] = true;
-    });
-  }
-  return regex
-}
-
-function normalizePath (path, parent, strict) {
-  if (!strict) { path = path.replace(/\/$/, ''); }
-  if (path[0] === '/') { return path }
-  if (parent == null) { return path }
-  return cleanPath(((parent.path) + "/" + path))
-}
-
-/*  */
-
 function normalizeLocation (
   raw,
   current,
@@ -22853,6 +22502,417 @@ function normalizeLocation (
     query: query,
     hash: hash
   }
+}
+
+/*  */
+
+// work around weird flow bug
+var toTypes = [String, Object];
+var eventTypes = [String, Array];
+
+var noop = function () {};
+
+var Link = {
+  name: 'RouterLink',
+  props: {
+    to: {
+      type: toTypes,
+      required: true
+    },
+    tag: {
+      type: String,
+      default: 'a'
+    },
+    exact: Boolean,
+    append: Boolean,
+    replace: Boolean,
+    activeClass: String,
+    exactActiveClass: String,
+    event: {
+      type: eventTypes,
+      default: 'click'
+    }
+  },
+  render: function render (h) {
+    var this$1 = this;
+
+    var router = this.$router;
+    var current = this.$route;
+    var ref = router.resolve(
+      this.to,
+      current,
+      this.append
+    );
+    var location = ref.location;
+    var route = ref.route;
+    var href = ref.href;
+
+    var classes = {};
+    var globalActiveClass = router.options.linkActiveClass;
+    var globalExactActiveClass = router.options.linkExactActiveClass;
+    // Support global empty active class
+    var activeClassFallback =
+      globalActiveClass == null ? 'router-link-active' : globalActiveClass;
+    var exactActiveClassFallback =
+      globalExactActiveClass == null
+        ? 'router-link-exact-active'
+        : globalExactActiveClass;
+    var activeClass =
+      this.activeClass == null ? activeClassFallback : this.activeClass;
+    var exactActiveClass =
+      this.exactActiveClass == null
+        ? exactActiveClassFallback
+        : this.exactActiveClass;
+
+    var compareTarget = route.redirectedFrom
+      ? createRoute(null, normalizeLocation(route.redirectedFrom), null, router)
+      : route;
+
+    classes[exactActiveClass] = isSameRoute(current, compareTarget);
+    classes[activeClass] = this.exact
+      ? classes[exactActiveClass]
+      : isIncludedRoute(current, compareTarget);
+
+    var handler = function (e) {
+      if (guardEvent(e)) {
+        if (this$1.replace) {
+          router.replace(location, null, noop);
+        } else {
+          router.push(location, null, noop);
+        }
+      }
+    };
+
+    var on = { click: guardEvent };
+    if (Array.isArray(this.event)) {
+      this.event.forEach(function (e) {
+        on[e] = handler;
+      });
+    } else {
+      on[this.event] = handler;
+    }
+
+    var data = { class: classes };
+
+    var scopedSlot =
+      !this.$scopedSlots.$hasNormal &&
+      this.$scopedSlots.default &&
+      this.$scopedSlots.default({
+        href: href,
+        route: route,
+        navigate: handler,
+        isActive: classes[activeClass],
+        isExactActive: classes[exactActiveClass]
+      });
+
+    if (scopedSlot) {
+      if (scopedSlot.length === 1) {
+        return scopedSlot[0]
+      } else if (scopedSlot.length > 1 || !scopedSlot.length) {
+        if (true) {
+          warn(
+            false,
+            ("RouterLink with to=\"" + (this.props.to) + "\" is trying to use a scoped slot but it didn't provide exactly one child.")
+          );
+        }
+        return scopedSlot.length === 0 ? h() : h('span', {}, scopedSlot)
+      }
+    }
+
+    if (this.tag === 'a') {
+      data.on = on;
+      data.attrs = { href: href };
+    } else {
+      // find the first <a> child and apply listener and href
+      var a = findAnchor(this.$slots.default);
+      if (a) {
+        // in case the <a> is a static node
+        a.isStatic = false;
+        var aData = (a.data = extend({}, a.data));
+        aData.on = on;
+        var aAttrs = (a.data.attrs = extend({}, a.data.attrs));
+        aAttrs.href = href;
+      } else {
+        // doesn't have <a> child, apply listener to self
+        data.on = on;
+      }
+    }
+
+    return h(this.tag, data, this.$slots.default)
+  }
+}
+
+function guardEvent (e) {
+  // don't redirect with control keys
+  if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) { return }
+  // don't redirect when preventDefault called
+  if (e.defaultPrevented) { return }
+  // don't redirect on right click
+  if (e.button !== undefined && e.button !== 0) { return }
+  // don't redirect if `target="_blank"`
+  if (e.currentTarget && e.currentTarget.getAttribute) {
+    var target = e.currentTarget.getAttribute('target');
+    if (/\b_blank\b/i.test(target)) { return }
+  }
+  // this may be a Weex event which doesn't have this method
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  return true
+}
+
+function findAnchor (children) {
+  if (children) {
+    var child;
+    for (var i = 0; i < children.length; i++) {
+      child = children[i];
+      if (child.tag === 'a') {
+        return child
+      }
+      if (child.children && (child = findAnchor(child.children))) {
+        return child
+      }
+    }
+  }
+}
+
+var _Vue;
+
+function install (Vue) {
+  if (install.installed && _Vue === Vue) { return }
+  install.installed = true;
+
+  _Vue = Vue;
+
+  var isDef = function (v) { return v !== undefined; };
+
+  var registerInstance = function (vm, callVal) {
+    var i = vm.$options._parentVnode;
+    if (isDef(i) && isDef(i = i.data) && isDef(i = i.registerRouteInstance)) {
+      i(vm, callVal);
+    }
+  };
+
+  Vue.mixin({
+    beforeCreate: function beforeCreate () {
+      if (isDef(this.$options.router)) {
+        this._routerRoot = this;
+        this._router = this.$options.router;
+        this._router.init(this);
+        Vue.util.defineReactive(this, '_route', this._router.history.current);
+      } else {
+        this._routerRoot = (this.$parent && this.$parent._routerRoot) || this;
+      }
+      registerInstance(this, this);
+    },
+    destroyed: function destroyed () {
+      registerInstance(this);
+    }
+  });
+
+  Object.defineProperty(Vue.prototype, '$router', {
+    get: function get () { return this._routerRoot._router }
+  });
+
+  Object.defineProperty(Vue.prototype, '$route', {
+    get: function get () { return this._routerRoot._route }
+  });
+
+  Vue.component('RouterView', View);
+  Vue.component('RouterLink', Link);
+
+  var strats = Vue.config.optionMergeStrategies;
+  // use the same hook merging strategy for route hooks
+  strats.beforeRouteEnter = strats.beforeRouteLeave = strats.beforeRouteUpdate = strats.created;
+}
+
+/*  */
+
+var inBrowser = typeof window !== 'undefined';
+
+/*  */
+
+function createRouteMap (
+  routes,
+  oldPathList,
+  oldPathMap,
+  oldNameMap
+) {
+  // the path list is used to control path matching priority
+  var pathList = oldPathList || [];
+  // $flow-disable-line
+  var pathMap = oldPathMap || Object.create(null);
+  // $flow-disable-line
+  var nameMap = oldNameMap || Object.create(null);
+
+  routes.forEach(function (route) {
+    addRouteRecord(pathList, pathMap, nameMap, route);
+  });
+
+  // ensure wildcard routes are always at the end
+  for (var i = 0, l = pathList.length; i < l; i++) {
+    if (pathList[i] === '*') {
+      pathList.push(pathList.splice(i, 1)[0]);
+      l--;
+      i--;
+    }
+  }
+
+  return {
+    pathList: pathList,
+    pathMap: pathMap,
+    nameMap: nameMap
+  }
+}
+
+function addRouteRecord (
+  pathList,
+  pathMap,
+  nameMap,
+  route,
+  parent,
+  matchAs
+) {
+  var path = route.path;
+  var name = route.name;
+  if (true) {
+    assert(path != null, "\"path\" is required in a route configuration.");
+    assert(
+      typeof route.component !== 'string',
+      "route config \"component\" for path: " + (String(
+        path || name
+      )) + " cannot be a " + "string id. Use an actual component instead."
+    );
+  }
+
+  var pathToRegexpOptions =
+    route.pathToRegexpOptions || {};
+  var normalizedPath = normalizePath(path, parent, pathToRegexpOptions.strict);
+
+  if (typeof route.caseSensitive === 'boolean') {
+    pathToRegexpOptions.sensitive = route.caseSensitive;
+  }
+
+  var record = {
+    path: normalizedPath,
+    regex: compileRouteRegex(normalizedPath, pathToRegexpOptions),
+    components: route.components || { default: route.component },
+    instances: {},
+    name: name,
+    parent: parent,
+    matchAs: matchAs,
+    redirect: route.redirect,
+    beforeEnter: route.beforeEnter,
+    meta: route.meta || {},
+    props:
+      route.props == null
+        ? {}
+        : route.components
+          ? route.props
+          : { default: route.props }
+  };
+
+  if (route.children) {
+    // Warn if route is named, does not redirect and has a default child route.
+    // If users navigate to this route by name, the default child will
+    // not be rendered (GH Issue #629)
+    if (true) {
+      if (
+        route.name &&
+        !route.redirect &&
+        route.children.some(function (child) { return /^\/?$/.test(child.path); })
+      ) {
+        warn(
+          false,
+          "Named Route '" + (route.name) + "' has a default child route. " +
+            "When navigating to this named route (:to=\"{name: '" + (route.name) + "'\"), " +
+            "the default child route will not be rendered. Remove the name from " +
+            "this route and use the name of the default child route for named " +
+            "links instead."
+        );
+      }
+    }
+    route.children.forEach(function (child) {
+      var childMatchAs = matchAs
+        ? cleanPath((matchAs + "/" + (child.path)))
+        : undefined;
+      addRouteRecord(pathList, pathMap, nameMap, child, record, childMatchAs);
+    });
+  }
+
+  if (!pathMap[record.path]) {
+    pathList.push(record.path);
+    pathMap[record.path] = record;
+  }
+
+  if (route.alias !== undefined) {
+    var aliases = Array.isArray(route.alias) ? route.alias : [route.alias];
+    for (var i = 0; i < aliases.length; ++i) {
+      var alias = aliases[i];
+      if ("development" !== 'production' && alias === path) {
+        warn(
+          false,
+          ("Found an alias with the same value as the path: \"" + path + "\". You have to remove that alias. It will be ignored in development.")
+        );
+        // skip in dev to make it work
+        continue
+      }
+
+      var aliasRoute = {
+        path: alias,
+        children: route.children
+      };
+      addRouteRecord(
+        pathList,
+        pathMap,
+        nameMap,
+        aliasRoute,
+        parent,
+        record.path || '/' // matchAs
+      );
+    }
+  }
+
+  if (name) {
+    if (!nameMap[name]) {
+      nameMap[name] = record;
+    } else if ("development" !== 'production' && !matchAs) {
+      warn(
+        false,
+        "Duplicate named routes definition: " +
+          "{ name: \"" + name + "\", path: \"" + (record.path) + "\" }"
+      );
+    }
+  }
+}
+
+function compileRouteRegex (
+  path,
+  pathToRegexpOptions
+) {
+  var regex = pathToRegexp_1(path, [], pathToRegexpOptions);
+  if (true) {
+    var keys = Object.create(null);
+    regex.keys.forEach(function (key) {
+      warn(
+        !keys[key.name],
+        ("Duplicate param keys in route with path: \"" + path + "\"")
+      );
+      keys[key.name] = true;
+    });
+  }
+  return regex
+}
+
+function normalizePath (
+  path,
+  parent,
+  strict
+) {
+  if (!strict) { path = path.replace(/\/$/, ''); }
+  if (path[0] === '/') { return path }
+  if (parent == null) { return path }
+  return cleanPath(((parent.path) + "/" + path))
 }
 
 /*  */
@@ -23094,20 +23154,27 @@ function handleScroll (
   // wait until re-render finishes before scrolling
   router.app.$nextTick(function () {
     var position = getScrollPosition();
-    var shouldScroll = behavior.call(router, to, from, isPop ? position : null);
+    var shouldScroll = behavior.call(
+      router,
+      to,
+      from,
+      isPop ? position : null
+    );
 
     if (!shouldScroll) {
       return
     }
 
     if (typeof shouldScroll.then === 'function') {
-      shouldScroll.then(function (shouldScroll) {
-        scrollToPosition((shouldScroll), position);
-      }).catch(function (err) {
-        if (true) {
-          assert(false, err.toString());
-        }
-      });
+      shouldScroll
+        .then(function (shouldScroll) {
+          scrollToPosition((shouldScroll), position);
+        })
+        .catch(function (err) {
+          if (true) {
+            assert(false, err.toString());
+          }
+        });
     } else {
       scrollToPosition(shouldScroll, position);
     }
@@ -23163,12 +23230,22 @@ function isNumber (v) {
   return typeof v === 'number'
 }
 
+var hashStartsWithNumberRE = /^#\d/;
+
 function scrollToPosition (shouldScroll, position) {
   var isObject = typeof shouldScroll === 'object';
   if (isObject && typeof shouldScroll.selector === 'string') {
-    var el = document.querySelector(shouldScroll.selector);
+    // getElementById would still fail if the selector contains a more complicated query like #main[data-attr]
+    // but at the same time, it doesn't make much sense to select an element with an id and an extra selector
+    var el = hashStartsWithNumberRE.test(shouldScroll.selector) // $flow-disable-line
+      ? document.getElementById(shouldScroll.selector.slice(1)) // $flow-disable-line
+      : document.querySelector(shouldScroll.selector);
+
     if (el) {
-      var offset = shouldScroll.offset && typeof shouldScroll.offset === 'object' ? shouldScroll.offset : {};
+      var offset =
+        shouldScroll.offset && typeof shouldScroll.offset === 'object'
+          ? shouldScroll.offset
+          : {};
       offset = normalizeOffset(offset);
       position = getElementPosition(el, offset);
     } else if (isValidPosition(shouldScroll)) {
@@ -23368,6 +23445,22 @@ function once (fn) {
   }
 }
 
+var NavigationDuplicated = /*@__PURE__*/(function (Error) {
+  function NavigationDuplicated () {
+    Error.call(this, 'Navigating to current location is not allowed');
+    this.name = this._name = 'NavigationDuplicated';
+  }
+
+  if ( Error ) NavigationDuplicated.__proto__ = Error;
+  NavigationDuplicated.prototype = Object.create( Error && Error.prototype );
+  NavigationDuplicated.prototype.constructor = NavigationDuplicated;
+
+  return NavigationDuplicated;
+}(Error));
+
+// support IE9
+NavigationDuplicated._name = 'NavigationDuplicated';
+
 /*  */
 
 var History = function History (router, base) {
@@ -23401,29 +23494,41 @@ History.prototype.onError = function onError (errorCb) {
   this.errorCbs.push(errorCb);
 };
 
-History.prototype.transitionTo = function transitionTo (location, onComplete, onAbort) {
+History.prototype.transitionTo = function transitionTo (
+  location,
+  onComplete,
+  onAbort
+) {
     var this$1 = this;
 
   var route = this.router.match(location, this.current);
-  this.confirmTransition(route, function () {
-    this$1.updateRoute(route);
-    onComplete && onComplete(route);
-    this$1.ensureURL();
+  this.confirmTransition(
+    route,
+    function () {
+      this$1.updateRoute(route);
+      onComplete && onComplete(route);
+      this$1.ensureURL();
 
-    // fire ready cbs once
-    if (!this$1.ready) {
-      this$1.ready = true;
-      this$1.readyCbs.forEach(function (cb) { cb(route); });
+      // fire ready cbs once
+      if (!this$1.ready) {
+        this$1.ready = true;
+        this$1.readyCbs.forEach(function (cb) {
+          cb(route);
+        });
+      }
+    },
+    function (err) {
+      if (onAbort) {
+        onAbort(err);
+      }
+      if (err && !this$1.ready) {
+        this$1.ready = true;
+        this$1.readyErrorCbs.forEach(function (cb) {
+          cb(err);
+        });
+      }
     }
-  }, function (err) {
-    if (onAbort) {
-      onAbort(err);
-    }
-    if (err && !this$1.ready) {
-      this$1.ready = true;
-      this$1.readyErrorCbs.forEach(function (cb) { cb(err); });
-    }
-  });
+  );
 };
 
 History.prototype.confirmTransition = function confirmTransition (route, onComplete, onAbort) {
@@ -23431,9 +23536,15 @@ History.prototype.confirmTransition = function confirmTransition (route, onCompl
 
   var current = this.current;
   var abort = function (err) {
-    if (isError(err)) {
+    // after merging https://github.com/vuejs/vue-router/pull/2771 we
+    // When the user navigates through history through back/forward buttons
+    // we do not want to throw the error. We only throw it if directly calling
+    // push/replace. That's why it's not included in isError
+    if (!isExtendedError(NavigationDuplicated, err) && isError(err)) {
       if (this$1.errorCbs.length) {
-        this$1.errorCbs.forEach(function (cb) { cb(err); });
+        this$1.errorCbs.forEach(function (cb) {
+          cb(err);
+        });
       } else {
         warn(false, 'uncaught error during route navigation:');
         console.error(err);
@@ -23447,10 +23558,13 @@ History.prototype.confirmTransition = function confirmTransition (route, onCompl
     route.matched.length === current.matched.length
   ) {
     this.ensureURL();
-    return abort()
+    return abort(new NavigationDuplicated(route))
   }
 
-  var ref = resolveQueue(this.current.matched, route.matched);
+  var ref = resolveQueue(
+    this.current.matched,
+    route.matched
+  );
     var updated = ref.updated;
     var deactivated = ref.deactivated;
     var activated = ref.activated;
@@ -23481,10 +23595,8 @@ History.prototype.confirmTransition = function confirmTransition (route, onCompl
           abort(to);
         } else if (
           typeof to === 'string' ||
-          (typeof to === 'object' && (
-            typeof to.path === 'string' ||
-            typeof to.name === 'string'
-          ))
+          (typeof to === 'object' &&
+            (typeof to.path === 'string' || typeof to.name === 'string'))
         ) {
           // next('/') or next({ path: '/' }) -> redirect
           abort();
@@ -23518,7 +23630,9 @@ History.prototype.confirmTransition = function confirmTransition (route, onCompl
       onComplete(route);
       if (this$1.router.app) {
         this$1.router.app.$nextTick(function () {
-          postEnterCbs.forEach(function (cb) { cb(); });
+          postEnterCbs.forEach(function (cb) {
+            cb();
+          });
         });
       }
     });
@@ -23621,9 +23735,13 @@ function extractEnterGuards (
   cbs,
   isValid
 ) {
-  return extractGuards(activated, 'beforeRouteEnter', function (guard, _, match, key) {
-    return bindEnterGuard(guard, match, key, cbs, isValid)
-  })
+  return extractGuards(
+    activated,
+    'beforeRouteEnter',
+    function (guard, _, match, key) {
+      return bindEnterGuard(guard, match, key, cbs, isValid)
+    }
+  )
 }
 
 function bindEnterGuard (
@@ -23785,20 +23903,23 @@ var HashHistory = /*@__PURE__*/(function (History$$1) {
       setupScroll();
     }
 
-    window.addEventListener(supportsPushState ? 'popstate' : 'hashchange', function () {
-      var current = this$1.current;
-      if (!ensureSlash()) {
-        return
+    window.addEventListener(
+      supportsPushState ? 'popstate' : 'hashchange',
+      function () {
+        var current = this$1.current;
+        if (!ensureSlash()) {
+          return
+        }
+        this$1.transitionTo(getHash(), function (route) {
+          if (supportsScroll) {
+            handleScroll(this$1.router, route, current, true);
+          }
+          if (!supportsPushState) {
+            replaceHash(route.fullPath);
+          }
+        });
       }
-      this$1.transitionTo(getHash(), function (route) {
-        if (supportsScroll) {
-          handleScroll(this$1.router, route, current, true);
-        }
-        if (!supportsPushState) {
-          replaceHash(route.fullPath);
-        }
-      });
-    });
+    );
   };
 
   HashHistory.prototype.push = function push (location, onComplete, onAbort) {
@@ -23806,11 +23927,15 @@ var HashHistory = /*@__PURE__*/(function (History$$1) {
 
     var ref = this;
     var fromRoute = ref.current;
-    this.transitionTo(location, function (route) {
-      pushHash(route.fullPath);
-      handleScroll(this$1.router, route, fromRoute, false);
-      onComplete && onComplete(route);
-    }, onAbort);
+    this.transitionTo(
+      location,
+      function (route) {
+        pushHash(route.fullPath);
+        handleScroll(this$1.router, route, fromRoute, false);
+        onComplete && onComplete(route);
+      },
+      onAbort
+    );
   };
 
   HashHistory.prototype.replace = function replace (location, onComplete, onAbort) {
@@ -23818,11 +23943,15 @@ var HashHistory = /*@__PURE__*/(function (History$$1) {
 
     var ref = this;
     var fromRoute = ref.current;
-    this.transitionTo(location, function (route) {
-      replaceHash(route.fullPath);
-      handleScroll(this$1.router, route, fromRoute, false);
-      onComplete && onComplete(route);
-    }, onAbort);
+    this.transitionTo(
+      location,
+      function (route) {
+        replaceHash(route.fullPath);
+        handleScroll(this$1.router, route, fromRoute, false);
+        onComplete && onComplete(route);
+      },
+      onAbort
+    );
   };
 
   HashHistory.prototype.go = function go (n) {
@@ -23846,9 +23975,7 @@ var HashHistory = /*@__PURE__*/(function (History$$1) {
 function checkFallback (base) {
   var location = getLocation(base);
   if (!/^\/#/.test(location)) {
-    window.location.replace(
-      cleanPath(base + '/#' + location)
-    );
+    window.location.replace(cleanPath(base + '/#' + location));
     return true
   }
 }
@@ -23877,10 +24004,13 @@ function getHash () {
   var searchIndex = href.indexOf('?');
   if (searchIndex < 0) {
     var hashIndex = href.indexOf('#');
-    if (hashIndex > -1) { href = decodeURI(href.slice(0, hashIndex)) + href.slice(hashIndex); }
-    else { href = decodeURI(href); }
+    if (hashIndex > -1) {
+      href = decodeURI(href.slice(0, hashIndex)) + href.slice(hashIndex);
+    } else { href = decodeURI(href); }
   } else {
-    if (searchIndex > -1) { href = decodeURI(href.slice(0, searchIndex)) + href.slice(searchIndex); }
+    if (searchIndex > -1) {
+      href = decodeURI(href.slice(0, searchIndex)) + href.slice(searchIndex);
+    }
   }
 
   return href
@@ -23888,9 +24018,14 @@ function getHash () {
 
 function getUrl (path) {
   var href = window.location.href;
-  var i = href.indexOf('#');
-  var base = i >= 0 ? href.slice(0, i) : href;
-  return (base + "#" + path)
+  var hashPos = href.indexOf('#');
+  var base = hashPos > -1 ? href.slice(0, hashPos) : href;
+
+  var searchPos = base.indexOf('?');
+  var query = searchPos > -1 ? base.slice(searchPos) : '';
+  base = query ? base.slice(0, searchPos) : base;
+
+  return (base + "#" + (path + query))
 }
 
 function pushHash (path) {
@@ -23925,20 +24060,28 @@ var AbstractHistory = /*@__PURE__*/(function (History$$1) {
   AbstractHistory.prototype.push = function push (location, onComplete, onAbort) {
     var this$1 = this;
 
-    this.transitionTo(location, function (route) {
-      this$1.stack = this$1.stack.slice(0, this$1.index + 1).concat(route);
-      this$1.index++;
-      onComplete && onComplete(route);
-    }, onAbort);
+    this.transitionTo(
+      location,
+      function (route) {
+        this$1.stack = this$1.stack.slice(0, this$1.index + 1).concat(route);
+        this$1.index++;
+        onComplete && onComplete(route);
+      },
+      onAbort
+    );
   };
 
   AbstractHistory.prototype.replace = function replace (location, onComplete, onAbort) {
     var this$1 = this;
 
-    this.transitionTo(location, function (route) {
-      this$1.stack = this$1.stack.slice(0, this$1.index).concat(route);
-      onComplete && onComplete(route);
-    }, onAbort);
+    this.transitionTo(
+      location,
+      function (route) {
+        this$1.stack = this$1.stack.slice(0, this$1.index).concat(route);
+        onComplete && onComplete(route);
+      },
+      onAbort
+    );
   };
 
   AbstractHistory.prototype.go = function go (n) {
@@ -23949,10 +24092,18 @@ var AbstractHistory = /*@__PURE__*/(function (History$$1) {
       return
     }
     var route = this.stack[targetIndex];
-    this.confirmTransition(route, function () {
-      this$1.index = targetIndex;
-      this$1.updateRoute(route);
-    });
+    this.confirmTransition(
+      route,
+      function () {
+        this$1.index = targetIndex;
+        this$1.updateRoute(route);
+      },
+      function (err) {
+        if (isExtendedError(NavigationDuplicated, err)) {
+          this$1.index = targetIndex;
+        }
+      }
+    );
   };
 
   AbstractHistory.prototype.getCurrentLocation = function getCurrentLocation () {
@@ -24096,11 +24247,29 @@ VueRouter.prototype.onError = function onError (errorCb) {
 };
 
 VueRouter.prototype.push = function push (location, onComplete, onAbort) {
-  this.history.push(location, onComplete, onAbort);
+    var this$1 = this;
+
+  // $flow-disable-line
+  if (!onComplete && !onAbort && typeof Promise !== 'undefined') {
+    return new Promise(function (resolve, reject) {
+      this$1.history.push(location, resolve, reject);
+    })
+  } else {
+    this.history.push(location, onComplete, onAbort);
+  }
 };
 
 VueRouter.prototype.replace = function replace (location, onComplete, onAbort) {
-  this.history.replace(location, onComplete, onAbort);
+    var this$1 = this;
+
+  // $flow-disable-line
+  if (!onComplete && !onAbort && typeof Promise !== 'undefined') {
+    return new Promise(function (resolve, reject) {
+      this$1.history.replace(location, resolve, reject);
+    })
+  } else {
+    this.history.replace(location, onComplete, onAbort);
+  }
 };
 
 VueRouter.prototype.go = function go (n) {
@@ -24180,7 +24349,7 @@ function createHref (base, fullPath, mode) {
 }
 
 VueRouter.install = install;
-VueRouter.version = '3.0.7';
+VueRouter.version = '3.1.1';
 
 if (inBrowser && window.Vue) {
   window.Vue.use(VueRouter);
@@ -24210,7 +24379,7 @@ var Component = __webpack_require__(3)(
   /* moduleIdentifier (server only) */
   null
 )
-Component.options.__file = "F:\\weex项目\\earnestMoney\\src\\components\\main.vue"
+Component.options.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\components\\main.vue"
 if (Component.esModule && Object.keys(Component.esModule).some(function (key) {return key !== "default" && key.substr(0, 2) !== "__"})) {console.error("named exports are not supported in *.vue files.")}
 if (Component.options.functional) {console.error("[vue-loader] main.vue: functional components are not supported with templates, they should use render functions.")}
 
@@ -24268,7 +24437,7 @@ exports = module.exports = __webpack_require__(1)(false);
 
 
 // module
-exports.push([module.i, "\n.textarea[data-v-29ef2e98]{\n    height: 200px;\n}\n.headers[data-v-29ef2e98]{\n  width: 750px;\n  height:88px;\n  padding-left: 30px;\n  padding-right: 40px;\n  -ms-flex-direction: row;\n      flex-direction: row;\n  -ms-flex-pack: justify;\n      justify-content: space-between;\n  -ms-flex-align: center;\n      align-items: center;\n  background-color: #ffffff;\n}\n.returnImg[data-v-29ef2e98]{\n    width: 100px;\n    height: 80px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.title[data-v-29ef2e98]{\n  font-size:34px;\n  color: #53575A;\n}\n.nullBox[data-v-29ef2e98]{\n  font-size:34px;\n  color: #ffffff;\n}\n.beforePage[data-v-29ef2e98]{\n    width: 48px;\n    height: 48px;\n}\n.addContent[data-v-29ef2e98]{\n  border-top-color: #F6F6F6;\n  border-top-style: solid;\n  border-top-width: 1px;\n}\n.addContentTop[data-v-29ef2e98]{\n  margin-left: 20px;\n}\n.addItemBox[data-v-29ef2e98]{\n  height: 96px;\n  -ms-flex-align: center;\n      align-items: center;\n  -ms-flex-direction: row;\n      flex-direction: row;\n}\n.leftBox[data-v-29ef2e98]{\n   -ms-flex-align: center;\n       align-items: center;\n  -ms-flex-direction: row;\n      flex-direction: row;\n}\n.rightBox[data-v-29ef2e98]{\n   -ms-flex-align: center;\n       align-items: center;\n   -ms-flex-direction: row;\n       flex-direction: row;\n   margin-right: 40px;\n}\n.courseType[data-v-29ef2e98]{\n  color: #2E3D50;\n  font-size: 30px;\n  margin-right: 10px;\n}\n.rightIcon[data-v-29ef2e98]{\nwidth: 32px;\nheight: 32px;\n}\n.warning[data-v-29ef2e98]{\n  color: #FB6666;\n  font-size: 30px;\n  margin-right: 12px;\n    margin-left: 10px;\n}\n.leftTxt[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.moneyInput[data-v-29ef2e98]{\n  width: 210px;\n  font-size: 30px;\n  text-align: right;\n  -ms-flex-align: center;\n      align-items: center;\n  padding-right: 2px;\n  height: 90px;\n  text-indent: 6px;\n}\n.cancel[data-v-29ef2e98]{\n    width: 30px;\n    height: 30px;\n    position: absolute;\n    top:-1px;\n    right: -1px;\n}\n.messCon[data-v-29ef2e98]{\n  -ms-flex-direction: row;\n      flex-direction: row;\n  -ms-flex-pack: justify;\n      justify-content: space-between;\n  -ms-flex-align: center;\n      align-items: center;\n  border-bottom-color: #E1E1E1;\n  border-bottom-style: solid;\n  border-bottom-width: 1px;\n  width: 700px;\n  height: 96px;\n}\n.bg[data-v-29ef2e98]{\n    background-color:rgba(0, 0, 0, 0.6);\n    position: absolute;\n    left: 0;\n    top:0;\n    width: 750px;\n}\n.centerBg[data-v-29ef2e98]{\n  -ms-flex-align: center;\n      align-items: center;\n  -ms-flex-pack: center;\n      justify-content: center;\n}\n.selectBox[data-v-29ef2e98]{\n    width: 750px;\n    background-color: #ffffff;\n    position: absolute;\n    bottom: 0;\n}\n.selectHeader[data-v-29ef2e98]{\n    padding-left:20px;\n    width: 730px;\n    height: 100px;\n    -ms-flex-direction: row;\n        flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    margin-bottom: 20px;\n    background-color: #ffffff;\n    border-bottom-color: #E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px;\n}\n.dispire[data-v-29ef2e98]{\n    font-size: 32px;\n    color: #828282;\n}\n.finish[data-v-29ef2e98]{\n    font-size: 32px;\n    color: #12C48B;\n}\n.titles[data-v-29ef2e98]{\n      font-size: 32px;\n      color: #2A3E49;\n}\n.lists[data-v-29ef2e98]{\n    width:750px;\n    height: 80px;\n    -ms-flex-pack: center;\n        justify-content: center;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.contents[data-v-29ef2e98]{\n    font-size:30px; \n    color: #CCCCD1;\n    border-bottom-color:#E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px;\n}\n.select[data-v-29ef2e98]{\n     font-size:34px; \n     color: #575757;\n     border-bottom-color:#E7E7E7;\n     border-bottom-style: solid;\n     border-bottom-width: 1px;\n}\n.scrollers[data-v-29ef2e98]{\n    width: 750px;\n    height:400px;\n    padding-top:80px;\n    background-color: #ffffff;\n}\n.imgBox[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n}\n.imgAdds[data-v-29ef2e98]{\n       margin-bottom: 20px;\n       -ms-flex-align: center;\n           align-items: center;\n       -ms-flex-direction: row;\n           flex-direction: row;\n       width:180px;\n       height: 180px;\n       margin-right: 40px;\n}\n.showPhoto[data-v-29ef2e98]{\n      width:160px;\n      height: 160px;\n}\n.addPhoto[data-v-29ef2e98]{\n    width:160px;\n    height: 160px;\n}\n.protocolBox[data-v-29ef2e98]{\n    border-bottom-color:#E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px; \n    padding-top:18px;\n    padding-bottom: 48px;\n    margin-left: 40px;\n}\n.protocolTitle[data-v-29ef2e98]{\n  color: #2E3D50;\n  font-size: 30px;\n  margin-bottom: 20px;\n}\n.postBox[data-v-29ef2e98]{\n    height: 88px;\n    width: 750px;\n    background-color: #12C48B;\n    position: absolute;\n    bottom: 0;\n    -ms-flex-align: center;\n        align-items: center;\n    -ms-flex-pack: center;\n        justify-content: center;\n}\n.postBtn[data-v-29ef2e98]{\n    color: #ffffff;\n    font-size: 30px;\n}\n.noteBox[data-v-29ef2e98]{\n    padding-top: 28px;\n    padding-left: 45px;\n}\n.noteTitle[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n    margin-bottom: 8px;\n}\n.eidtPros[data-v-29ef2e98]{\n    width: 40px;\n    height: 40px;\n}\n.traineeMess[data-v-29ef2e98]{\n    height: 180px;\n    -ms-flex-align: center;\n        align-items: center;\n    -ms-flex-direction: row;\n        flex-direction: row;\n}\n.traineeImg[data-v-29ef2e98]{\n    width: 140px;\n    height: 140px;\n    margin-right: 20px;\n    margin-left: 46px;\n}\n.rightItem[data-v-29ef2e98]{\n    margin-bottom: 10px;\n    color: #464646;\n    font-size: 28px;\n}\n.messItem[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    height: 96px;\n    margin-left: 50px;\n    width: 700px;\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    padding-right: 40px;\n}\n.messItems[data-v-29ef2e98]{\n     -ms-flex-direction: row;\n         flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    height: 96px;\n    margin-left: 50px;\n    width: 700px;\n    padding-right: 40px;\n}\n.messName[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.messContent[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.procotolMess[data-v-29ef2e98]{\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    margin-left: 50px;\n    width: 700px;\n    padding-top:20px;\n    padding-bottom: 48px;\n}\n.procotolTitle[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n    margin-bottom: 12px;\n}\n.noteMess[data-v-29ef2e98]{\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    margin-left: 50px;\n    width: 700px;\n    padding-top: 20px;\n}\n.noteCon[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.payMethodBox[data-v-29ef2e98]{\n    background-color: #ffffff;\n    padding-top:40px;\n    padding-bottom: 80px;\n    position: absolute;\n    bottom: 0;\n    opacity: 1;\n    width:750px;\n}\n.payMethodTitle[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-bottom: 60px;\n      padding-right: 40px;\n}\n.codeTitle[data-v-29ef2e98]{\n      width: 570px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-top: 30px;\n      padding-right: 40px;\n      padding-left: 40px;\n}\n.codeBox[data-v-29ef2e98]{\n    background-color: #ffffff;\n    width:570px;\n    border-radius: 8px;\n}\n.payTitle[data-v-29ef2e98]{\n    color: #323232;\n    font-size: 32px;\n    margin-left: 40px;\n}\n.hidePayBtn[data-v-29ef2e98]{\n      width: 32px;\n      height: 32px;\n}\n.payBox[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      padding-left: 40px;\n      padding-right: 40px;\n}\n.methodStyle[data-v-29ef2e98]{\n      width: 320px;\n      height: 140px;\n      background-color: #F6F6F6;\n      border-radius: 16px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-align: center;\n          align-items: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n}\n.payIcon[data-v-29ef2e98]{\n      width: 80px;\n      height: 80px;\n      margin-right: 20px;\n}\n.parRight[data-v-29ef2e98]{\n      height: 80px;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n}\n.payName[data-v-29ef2e98]{\n      color: #323232;\n      font-size: 32px;\n}\n.scanCode[data-v-29ef2e98]{\n        color: #ABA7AA;\n      font-size: 26px;\n}\n.qrCodeBox[data-v-29ef2e98]{\n    width: 570px;\n    height: 290px;\n    margin-top:60px;\n    margin-bottom: 44px;\n    -ms-flex-pack: center;\n        justify-content: center;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.qrCode[data-v-29ef2e98]{\n     width: 290px;\n     height: 290px;\n}\n.codePriceBox[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n       -ms-flex-pack: center;\n           justify-content: center;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-bottom: 60px;\n}\n.buttonBox[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n    border-top-width: 1px;\n    border-top-style: solid;\n    border-top-color: #E9E9E9;\n    width: 570px;\n}\n.dispireBtn[data-v-29ef2e98]{\n     width: 286px;\n     line-height: 100px;\n     text-align: center;\n     color: #A3A3A3;\n     font-size: 32px;\n     border-right-width: 1px;\n     border-right-style: solid;\n     border-right-color: #E9E9E9;\n     border-bottom-left-radius: 16px;\n}\n.payFinish[data-v-29ef2e98]{\n     width: 286px;\n     line-height: 100px;\n     text-align: center;\n     color: #0279FF;\n     font-size: 32px; \n     border-bottom-right-radius: 16px;\n}\n", ""]);
+exports.push([module.i, "\n.supportPayBox[data-v-29ef2e98]{\n  -ms-flex-align: center;\n      align-items: center;\n  -ms-flex-pack: center;\n      justify-content: center;\n}\n.supportTxt[data-v-29ef2e98]{\n    color: #323232;\n    font-size: 28px;\n    margin-bottom:20rpx;\n}\n.payMethodsIcon[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n    -ms-flex-align: center;\n        align-items: center;\n    -ms-flex-pack: center;\n        justify-content: center;\n    margin-bottom: 40rpx;\n}\n.textarea[data-v-29ef2e98]{\n    height: 200px;\n}\n.headers[data-v-29ef2e98]{\n  width: 750px;\n  height:88px;\n  padding-left: 30px;\n  padding-right: 40px;\n  -ms-flex-direction: row;\n      flex-direction: row;\n  -ms-flex-pack: justify;\n      justify-content: space-between;\n  -ms-flex-align: center;\n      align-items: center;\n  background-color: #ffffff;\n}\n.returnImg[data-v-29ef2e98]{\n    width: 100px;\n    height: 80px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.title[data-v-29ef2e98]{\n  font-size:34px;\n  color: #53575A;\n}\n.nullBox[data-v-29ef2e98]{\n  font-size:34px;\n  color: #F5F5F5;\n}\n.beforePage[data-v-29ef2e98]{\n    width: 48px;\n    height: 48px;\n}\n.addContent[data-v-29ef2e98]{\n  border-top-color: #F6F6F6;\n  border-top-style: solid;\n  border-top-width: 1px;\n}\n.addContentTop[data-v-29ef2e98]{\n  margin-left: 20px;\n}\n.addItemBox[data-v-29ef2e98]{\n  height: 96px;\n  -ms-flex-align: center;\n      align-items: center;\n  -ms-flex-direction: row;\n      flex-direction: row;\n}\n.leftBox[data-v-29ef2e98]{\n   -ms-flex-align: center;\n       align-items: center;\n  -ms-flex-direction: row;\n      flex-direction: row;\n}\n.rightBox[data-v-29ef2e98]{\n   -ms-flex-align: center;\n       align-items: center;\n   -ms-flex-direction: row;\n       flex-direction: row;\n   margin-right: 40px;\n}\n.courseType[data-v-29ef2e98]{\n  color: #2E3D50;\n  font-size: 30px;\n  margin-right: 10px;\n}\n.rightIcon[data-v-29ef2e98]{\nwidth: 32px;\nheight: 32px;\n}\n.warning[data-v-29ef2e98]{\n  color: #FB6666;\n  font-size: 30px;\n  margin-right: 12px;\n    margin-left: 10px;\n}\n.leftTxt[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.moneyInput[data-v-29ef2e98]{\n  width: 210px;\n  font-size: 30px;\n  text-align: right;\n  -ms-flex-align: center;\n      align-items: center;\n  padding-right: 2px;\n  height: 90px;\n  text-indent: 6px;\n}\n.cancel[data-v-29ef2e98]{\n    width: 30px;\n    height: 30px;\n    position: absolute;\n    top:-1px;\n    right: -1px;\n}\n.messCon[data-v-29ef2e98]{\n  -ms-flex-direction: row;\n      flex-direction: row;\n  -ms-flex-pack: justify;\n      justify-content: space-between;\n  -ms-flex-align: center;\n      align-items: center;\n  border-bottom-color: #E1E1E1;\n  border-bottom-style: solid;\n  border-bottom-width: 1px;\n  width: 700px;\n  height: 96px;\n}\n.bg[data-v-29ef2e98]{\n    background-color:rgba(0, 0, 0, 0.6);\n    position: absolute;\n    left: 0;\n    top:0;\n    width: 750px;\n}\n.centerBg[data-v-29ef2e98]{\n  -ms-flex-align: center;\n      align-items: center;\n  -ms-flex-pack: center;\n      justify-content: center;\n}\n.selectBox[data-v-29ef2e98]{\n    width: 750px;\n    background-color: #ffffff;\n    position: absolute;\n    bottom: 0;\n}\n.selectHeader[data-v-29ef2e98]{\n    padding-left:20px;\n    width: 730px;\n    height: 100px;\n    -ms-flex-direction: row;\n        flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    margin-bottom: 20px;\n    background-color: #ffffff;\n    border-bottom-color: #E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px;\n}\n.dispire[data-v-29ef2e98]{\n    font-size: 32px;\n    color: #828282;\n}\n.finish[data-v-29ef2e98]{\n    font-size: 32px;\n    color: #12C48B;\n}\n.titles[data-v-29ef2e98]{\n      font-size: 32px;\n      color: #2A3E49;\n}\n.lists[data-v-29ef2e98]{\n    width:750px;\n    height: 80px;\n    -ms-flex-pack: center;\n        justify-content: center;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.contents[data-v-29ef2e98]{\n    font-size:30px; \n    color: #CCCCD1;\n    border-bottom-color:#E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px;\n}\n.select[data-v-29ef2e98]{\n     font-size:34px; \n     color: #575757;\n     border-bottom-color:#E7E7E7;\n     border-bottom-style: solid;\n     border-bottom-width: 1px;\n}\n.scrollers[data-v-29ef2e98]{\n    width: 750px;\n    height:400px;\n    padding-top:80px;\n    background-color: #ffffff;\n}\n.imgBox[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n}\n.imgAdds[data-v-29ef2e98]{\n       margin-bottom: 20px;\n       -ms-flex-align: center;\n           align-items: center;\n       -ms-flex-direction: row;\n           flex-direction: row;\n       width:180px;\n       height: 180px;\n       margin-right: 40px;\n}\n.showPhoto[data-v-29ef2e98]{\n      width:160px;\n      height: 160px;\n}\n.addPhoto[data-v-29ef2e98]{\n    width:160px;\n    height: 160px;\n}\n.protocolBox[data-v-29ef2e98]{\n    border-bottom-color:#E7E7E7;\n    border-bottom-style: solid;\n    border-bottom-width: 1px; \n    padding-top:18px;\n    padding-bottom: 48px;\n    margin-left: 40px;\n}\n.protocolTitle[data-v-29ef2e98]{\n  color: #2E3D50;\n  font-size: 30px;\n  margin-bottom: 20px;\n}\n.postBox[data-v-29ef2e98]{\n    height: 88px;\n    width: 750px;\n    background-color: #12C48B;\n    position: absolute;\n    bottom: 0;\n    -ms-flex-align: center;\n        align-items: center;\n    -ms-flex-pack: center;\n        justify-content: center;\n}\n.postBtn[data-v-29ef2e98]{\n    color: #ffffff;\n    font-size: 30px;\n}\n.noteBox[data-v-29ef2e98]{\n    padding-top: 28px;\n    padding-left: 45px;\n}\n.noteTitle[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n    margin-bottom: 8px;\n}\n.eidtPros[data-v-29ef2e98]{\n    width: 40px;\n    height: 40px;\n}\n.traineeMess[data-v-29ef2e98]{\n    height: 180px;\n    -ms-flex-align: center;\n        align-items: center;\n    -ms-flex-direction: row;\n        flex-direction: row;\n}\n.traineeImg[data-v-29ef2e98]{\n    width: 140px;\n    height: 140px;\n    margin-right: 20px;\n    margin-left: 46px;\n}\n.rightItem[data-v-29ef2e98]{\n    margin-bottom: 10px;\n    color: #464646;\n    font-size: 28px;\n}\n.messItem[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    height: 96px;\n    margin-left: 50px;\n    width: 700px;\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    padding-right: 40px;\n}\n.messItems[data-v-29ef2e98]{\n     -ms-flex-direction: row;\n         flex-direction: row;\n    -ms-flex-pack: justify;\n        justify-content: space-between;\n    -ms-flex-align: center;\n        align-items: center;\n    height: 96px;\n    margin-left: 50px;\n    width: 700px;\n    padding-right: 40px;\n}\n.messName[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.messContent[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.procotolMess[data-v-29ef2e98]{\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    margin-left: 50px;\n    width: 700px;\n    padding-top:20px;\n    padding-bottom: 48px;\n}\n.procotolTitle[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n    margin-bottom: 12px;\n}\n.noteMess[data-v-29ef2e98]{\n    border-top-color:#E1E1E1;\n    border-top-style: solid;\n    border-top-width: 1px; \n    margin-left: 50px;\n    width: 700px;\n    padding-top: 20px;\n}\n.noteCon[data-v-29ef2e98]{\n    color: #2E3D50;\n    font-size: 30px;\n}\n.payMethodBox[data-v-29ef2e98]{\n    background-color: #ffffff;\n    padding-top:40px;\n    padding-bottom: 80px;\n    position: absolute;\n    bottom: 0;\n    opacity: 1;\n    width:750px;\n}\n.payMethodTitle[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-bottom: 60px;\n      padding-right: 40px;\n}\n.codeTitle[data-v-29ef2e98]{\n      width: 570px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-top: 20px;\n      padding-right: 40px;\n      padding-left: 40px;\n}\n.qrCodeTop[data-v-29ef2e98]{\n      background-color: #F5F5F5;\n      border-top-left-radius: 8px;\n      border-top-right-radius: 8px;\n}\n.codeBox[data-v-29ef2e98]{\n    background-color: #ffffff;\n    width:570px;\n    border-radius: 8px;\n}\n.payTitle[data-v-29ef2e98]{\n    color: #323232;\n    font-size: 32px;\n    margin-left: 40px;\n}\n.hidePayBtn[data-v-29ef2e98]{\n      width: 32px;\n      height: 32px;\n}\n.payBox[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n      -ms-flex-align: center;\n          align-items: center;\n      padding-left: 40px;\n      padding-right: 40px;\n}\n.methodStyle[data-v-29ef2e98]{\n      width: 320px;\n      height: 140px;\n      background-color: #F6F6F6;\n      border-radius: 16px;\n      -ms-flex-direction: row;\n          flex-direction: row;\n      -ms-flex-align: center;\n          align-items: center;\n      -ms-flex-pack: center;\n          justify-content: center;\n}\n.payIcon[data-v-29ef2e98]{\n      width: 80px;\n      height: 80px;\n}\n.parRight[data-v-29ef2e98]{\n      height: 80px;\n      -ms-flex-pack: justify;\n          justify-content: space-between;\n}\n.payName[data-v-29ef2e98]{\n      color: #323232;\n      font-size: 32px;\n}\n.scanCode[data-v-29ef2e98]{\n        color: #ABA7AA;\n      font-size: 26px;\n}\n.qrCodeBox[data-v-29ef2e98]{\n    width: 570px;\n    height: 290px;\n    margin-top:60px;\n    -ms-flex-pack: center;\n        justify-content: center;\n    -ms-flex-align: center;\n        align-items: center;\n}\n.qrCode[data-v-29ef2e98]{\n     width: 290px;\n     height: 290px; \n     margin-bottom: 20rpx;\n}\n.codePriceBox[data-v-29ef2e98]{\n      -ms-flex-direction: row;\n          flex-direction: row;\n    -ms-flex-pack: center;\n        justify-content: center;\n      -ms-flex-align: center;\n          align-items: center;\n      margin-bottom: 16px;\n      margin-top: 20px;\n}\n.buttonBox[data-v-29ef2e98]{\n    -ms-flex-direction: row;\n        flex-direction: row;\n    border-top-width: 1px;\n    border-top-style: solid;\n    border-top-color: #E9E9E9;\n    width: 570px;\n}\n.dispireBtn[data-v-29ef2e98]{\n     width: 286px;\n     line-height: 100px;\n     text-align: center;\n     color: #A3A3A3;\n     font-size: 32px;\n     border-right-width: 1px;\n     border-right-style: solid;\n     border-right-color: #E9E9E9;\n     border-bottom-left-radius: 16px;\n}\n.payFinish[data-v-29ef2e98]{\n     width: 286px;\n     line-height: 100px;\n     text-align: center;\n     color: #0279FF;\n     font-size: 32px; \n     border-bottom-right-radius: 16px;\n}\n", ""]);
 
 // exports
 
@@ -24888,6 +25057,35 @@ Object.defineProperty(exports, "__esModule", {
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 var imageModule = weex.requireModule('image');
 var uploadModule = weex.requireModule('transfer');
@@ -24902,8 +25100,8 @@ exports.default = {
             height: '',
             list: [{ title: '私教课', value: 2, checked: true }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }],
             depositMess: '',
-            //   webHost:'http://10.0.0.116:8080',
-            webHost: 'https://www.forzadata.cn',
+            webHost: 'http://10.0.0.12:9090',
+            //   webHost:'https://www.forzadata.cn',
             traineeId: '1529520',
             photoArray: [],
             isUploading: false,
@@ -25162,16 +25360,19 @@ exports.default = {
             this.photoArray.splice(index, 1);
         },
         toPay: function toPay() {
-            this.isPay = true;
+            //    this.isPay=true;
+            this.showPayCode = true;
             this.componentVisibility = 'hidden';
+            nativeMoudle.showProgressDialog();
+            this.pay(1);
         },
         hidePay: function hidePay() {
-            this.isPay = false;
+            //    this.isPay=false;
+            this.showPayCode = false;
             this.componentVisibility = 'visible';
         },
         pay: function pay(payMethod) {
             var me = this;
-            nativeMoudle.showProgressDialog();
             var payNum = payMethod == 1 ? '010' : '020';
             var GET_URL = me.webHost + '/api/weex/deposit/' + me.centerId + '/getPreDepositPayOrder/' + me.depositMess.id + '/' + payNum;
             stream.fetch({
@@ -25187,11 +25388,11 @@ exports.default = {
                     if (ret.data.status == 0) {
                         me.isPay = false;
                         me.showPayCode = true;
-                        if (payMethod == '1') {
-                            me.payStyle = '微信支付';
-                        } else {
-                            me.payStyle = '支付宝支付';
-                        }
+                        // if(payMethod=='1'){
+                        // me.payStyle='微信支付';    
+                        // }else{
+                        // me.payStyle='支付宝支付';    
+                        // }   
                         //  nativeMoudle.toast(ret.data.data.qrCodeLink);                 
                         if (ret.data.data.depositId != '' && ret.data.data.depositId != null && ret.data.data.depositId != undefined) {
                             me.$router.push({ name: 'deposit', query: { id: ret.data.data.depositId } });
@@ -25789,6 +25990,10 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     staticStyle: _vm.$processStyle(undefined),
     style: (_vm.$processStyle(undefined))
   }, [_c('div', {
+    staticClass: "qrCodeTop",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined))
+  }, [_c('div', {
     staticClass: "codeTitle",
     staticStyle: _vm.$processStyle(undefined),
     style: (_vm.$processStyle(undefined))
@@ -25804,7 +26009,7 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
       "font-size": "36px"
     }),
     style: (_vm.$processStyle(undefined))
-  }, [_vm._v(_vm._s(_vm.payStyle))]), _vm._v(" "), _c('image', {
+  }, [_vm._v("扫码支付")]), _vm._v(" "), _c('image', {
     staticClass: "hidePayBtn",
     staticStyle: _vm.$processStyle(undefined),
     style: (_vm.$processStyle(undefined)),
@@ -25813,17 +26018,6 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     },
     on: {
       "click": _vm.hidePaycode
-    }
-  })]), _vm._v(" "), _c('div', {
-    staticClass: "qrCodeBox",
-    staticStyle: _vm.$processStyle(undefined),
-    style: (_vm.$processStyle(undefined))
-  }, [_c('image', {
-    staticClass: "qrCode",
-    staticStyle: _vm.$processStyle(undefined),
-    style: (_vm.$processStyle(undefined)),
-    attrs: {
-      "src": _vm.qrCodeLink
     }
   })]), _vm._v(" "), _c('div', {
     staticClass: "codePriceBox",
@@ -25841,7 +26035,46 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
       "font-size": "36px"
     }),
     style: (_vm.$processStyle(undefined))
-  }, [_vm._v("¥" + _vm._s(_vm.depositMess.amount))])]), _vm._v(" "), _c('div', {
+  }, [_vm._v("¥" + _vm._s(_vm.depositMess.amount))])])]), _vm._v(" "), _c('div', {
+    staticClass: "qrCodeBox",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined))
+  }, [_c('image', {
+    staticClass: "qrCode",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined)),
+    attrs: {
+      "src": _vm.qrCodeLink
+    }
+  })]), _vm._v(" "), _c('div', {
+    staticClass: "supportPayBox",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined))
+  }, [_c('text', {
+    staticClass: "supportTxt",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined))
+  }, [_vm._v("支持以下方式")]), _vm._v(" "), _c('view', {
+    staticClass: "payMethodsIcon",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined))
+  }, [_c('image', {
+    staticClass: "payIcon",
+    staticStyle: _vm.$processStyle({
+      "margin-right": "30px"
+    }),
+    style: (_vm.$processStyle(undefined)),
+    attrs: {
+      "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/wechat.png"
+    }
+  }), _vm._v(" "), _c('image', {
+    staticClass: "payIcon",
+    staticStyle: _vm.$processStyle(undefined),
+    style: (_vm.$processStyle(undefined)),
+    attrs: {
+      "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/alipay.png"
+    }
+  })])]), _vm._v(" "), _c('div', {
     staticClass: "buttonBox",
     staticStyle: _vm.$processStyle(undefined),
     style: (_vm.$processStyle(undefined))
@@ -25916,7 +26149,7 @@ var Component = __webpack_require__(3)(
   /* moduleIdentifier (server only) */
   null
 )
-Component.options.__file = "F:\\weex项目\\earnestMoney\\src\\components\\deposit.vue"
+Component.options.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\components\\deposit.vue"
 if (Component.esModule && Object.keys(Component.esModule).some(function (key) {return key !== "default" && key.substr(0, 2) !== "__"})) {console.error("named exports are not supported in *.vue files.")}
 if (Component.options.functional) {console.error("[vue-loader] deposit.vue: functional components are not supported with templates, they should use render functions.")}
 
@@ -26203,8 +26436,8 @@ exports.default = {
             traineeId: '',
             centerId: '',
             token: '',
-            //  webHost:'http://10.0.0.116:8080',
-            webHost: 'https://www.forzadata.cn',
+            webHost: 'http://10.0.0.116:8080',
+            // webHost:'https://www.forzadata.cn',
             traineePhone: '',
             serialNumBarCode: ''
         };
@@ -26502,7 +26735,7 @@ var Component = __webpack_require__(3)(
   /* moduleIdentifier (server only) */
   null
 )
-Component.options.__file = "F:\\weex项目\\earnestMoney\\src\\components\\edit.vue"
+Component.options.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\components\\edit.vue"
 if (Component.esModule && Object.keys(Component.esModule).some(function (key) {return key !== "default" && key.substr(0, 2) !== "__"})) {console.error("named exports are not supported in *.vue files.")}
 if (Component.options.functional) {console.error("[vue-loader] edit.vue: functional components are not supported with templates, they should use render functions.")}
 
@@ -27040,8 +27273,8 @@ exports.default = {
             isShow: false,
             height: '',
             list: [{ title: '私教课', value: 2, checked: false }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }],
-            //  webHost:'http://10.0.0.116:8080',
-            webHost: 'https://www.forzadata.cn',
+            webHost: 'http://10.0.0.116:8080',
+            //   webHost:'https://www.forzadata.cn',
             traineeId: '1529520',
             photoArray: [],
             isUploading: false,
@@ -27750,7 +27983,7 @@ var Component = __webpack_require__(3)(
   /* moduleIdentifier (server only) */
   null
 )
-Component.options.__file = "F:\\weex项目\\earnestMoney\\src\\index.vue"
+Component.options.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\index.vue"
 if (Component.esModule && Object.keys(Component.esModule).some(function (key) {return key !== "default" && key.substr(0, 2) !== "__"})) {console.error("named exports are not supported in *.vue files.")}
 if (Component.options.functional) {console.error("[vue-loader] index.vue: functional components are not supported with templates, they should use render functions.")}
 

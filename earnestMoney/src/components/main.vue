@@ -128,18 +128,27 @@
         </div> 
         <div class="bg centerBg"  v-if="showPayCode" :style="{height:height}" @click="emptyClick">
            <div class="codeBox">
-               <div class="codeTitle">
-                   <text class="nullBox" style=" width: 32px;">12</text>
-                   <text class="payName" style="font-size:36px;">{{payStyle}}</text>
-                    <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/greyCancel.png' class="hidePayBtn" @click="hidePaycode"/>
+               <div class="qrCodeTop">
+                   <div class="codeTitle">
+                        <text class="nullBox" style=" width: 32px;">12</text>
+                        <text class="payName" style="font-size:36px;">扫码支付</text>
+                        <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/greyCancel.png' class="hidePayBtn" @click="hidePaycode"/>
+                    </div>
+                     <div class="codePriceBox">
+                        <text style="color:#323232;font-size:32px;">支付：</text>
+                        <text style="color:#FD5000;font-size:36px;">¥{{depositMess.amount}}</text>
+                    </div>
                </div>
                <div class="qrCodeBox">
                    <image :src='qrCodeLink' class="qrCode"/>
                </div>
-               <div class="codePriceBox">
-                   <text style="color:#323232;font-size:32px;">支付：</text>
-                   <text style="color:#FD5000;font-size:36px;">¥{{depositMess.amount}}</text>
-               </div>
+               <div class="supportPayBox">
+                  <text class="supportTxt">支持以下方式</text>   
+                  <view class="payMethodsIcon">
+                    <image class="payIcon" src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/wechat.png' style="margin-right:30px;"/>
+                    <image class="payIcon" src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/alipay.png'/>
+                  </view>
+                </div>          
                 <div class="buttonBox">
                     <text class="dispireBtn" @click="hidePaycode">取消</text>
                     <text class="payFinish" @click="payResults">已支付</text>
@@ -155,6 +164,21 @@
     </div> 
 </template>
 <style scoped>
+.supportPayBox{
+  align-items: center;
+  justify-content: center;
+}
+.supportTxt{
+    color: #323232;
+    font-size: 28px;
+    margin-bottom:20rpx;
+}
+.payMethodsIcon{
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 40rpx;
+}
 .textarea{
     height: 200px;
 }
@@ -180,7 +204,7 @@
 }
 .nullBox{
   font-size:34px;
-  color: #ffffff;
+  color: #F5F5F5;
 }
 .beforePage{
     width: 48px;
@@ -474,9 +498,14 @@ height: 32px;;
       flex-direction: row;
       justify-content: space-between;
       align-items: center;
-      margin-top: 30px;
+      margin-top: 20px;
       padding-right: 40px;
       padding-left: 40px;
+  }
+  .qrCodeTop{
+      background-color: #F5F5F5;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
   }
   .codeBox{
     background-color: #ffffff;
@@ -511,7 +540,6 @@ height: 32px;;
   .payIcon{
       width: 80px;
       height: 80px;
-      margin-right: 20px;
   }
   .parRight{
       height: 80px;
@@ -529,19 +557,20 @@ height: 32px;;
     width: 570px;
     height: 290px;
     margin-top:60px;
-    margin-bottom: 44px;
     justify-content: center;
     align-items: center;
   }
   .qrCode{
      width: 290px;
      height: 290px; 
+     margin-bottom: 20rpx;
   }
   .codePriceBox{
       flex-direction: row;
-       justify-content: center;
+    justify-content: center;
       align-items: center;
-      margin-bottom: 60px;
+      margin-bottom: 16px;
+      margin-top: 20px;
   }
   .buttonBox{
     flex-direction: row;
@@ -585,7 +614,7 @@ export default {
                    { title: '培训课', value: 3, checked: false},
                    { title: '会员卡', value: 1, checked: false}],
           depositMess:'',    
-        //   webHost:'http://10.0.0.116:8080',
+        //   webHost:'http://10.0.0.12:9090',
           webHost:'https://www.forzadata.cn',
           traineeId:'1529520',
           photoArray:[],
@@ -849,16 +878,19 @@ export default {
          this.photoArray.splice(index, 1);
        },
        toPay(){
-           this.isPay=true;
+        //    this.isPay=true;
+             this.showPayCode=true;
            this.componentVisibility='hidden';
+            nativeMoudle.showProgressDialog();
+           this.pay(1);
        },
        hidePay(){
-           this.isPay=false;
+        //    this.isPay=false;
+            this.showPayCode=false;
            this.componentVisibility='visible';
        },
         pay(payMethod){
-            var me=this;
-            nativeMoudle.showProgressDialog();
+            var me=this;        
             var payNum=payMethod==1?'010':'020'
             var GET_URL = me.webHost+'/api/weex/deposit/'+me.centerId+'/getPreDepositPayOrder/'+me.depositMess.id+'/'+payNum;
             stream.fetch({
@@ -874,11 +906,11 @@ export default {
                 if(ret.data.status==0){  
                     me.isPay=false;
                     me.showPayCode=true;
-                    if(payMethod=='1'){
-                    me.payStyle='微信支付';    
-                    }else{
-                    me.payStyle='支付宝支付';    
-                    }   
+                    // if(payMethod=='1'){
+                    // me.payStyle='微信支付';    
+                    // }else{
+                    // me.payStyle='支付宝支付';    
+                    // }   
                     //  nativeMoudle.toast(ret.data.data.qrCodeLink);                 
                     if(ret.data.data.depositId!=''&&ret.data.data.depositId!=null&&ret.data.data.depositId!=undefined){
                           me.$router.push({name:'deposit',query:{id:ret.data.data.depositId}});

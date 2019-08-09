@@ -211,8 +211,8 @@ export default {
          traineeId:'',
          centerId:'',
          token:'',
-        //  webHost:'http://10.0.0.116:8080',
-        webHost:'https://www.forzadata.cn',
+         webHost:'http://10.0.0.116:8080',
+        // webHost:'https://www.forzadata.cn',
          traineePhone:'',
          serialNumBarCode:''
       }),
