@@ -23,8 +23,12 @@
                     <text class="warning">*</text>
                     <div class="messCon">                              
                       <text class="leftTxt">定金类型</text>   
-                      <div class="rightBox" @click="selectCourseStyle">
+                      <div class="rightBox" @click="selectCourseStyle" v-if="!isStudio">
                         <text class="courseType">{{usedType==1?'会员卡':usedType==2?'私教课':'培训课'}}</text>
+                        <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png' class="rightIcon"/>
+                      </div>
+                        <div class="rightBox"  v-if="isStudio">
+                        <text class="courseType">会员卡</text>
                         <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png' class="rightIcon"/>
                       </div>
                   </div>
@@ -464,7 +468,7 @@ export default {
           list: [  { title: '私教课', value: 2,checked: false},
                    { title: '培训课', value: 3, checked: false},
                     { title: '会员卡', value: 1, checked: false}],   
-        //  webHost:'http://10.0.0.116:8080',
+        //  webHost:'http://10.0.0.12:8080',
           webHost:'https://www.forzadata.cn',
           traineeId:'1529520',
           photoArray:[],
@@ -482,7 +486,9 @@ export default {
           componentVisibility:'visible',
           depositId:null,
           isDelete:false,
-          coachAPP:true
+          coachAPP:true,
+          isStudio:true,
+          isPhoneBangseries:false
 
       }),
        created(){
@@ -492,8 +498,30 @@ export default {
                 that.centerId=map.centerId;
                 that.token=map.token;
                 that.coachAPP=map.coachAPP;
+                that.isStudio=map.isStudio;
+                that.height = map.isPhoneBangseries? (750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-118):(750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50);
+                 if(map.allowTrainingCourse){
+                    that.list=[
+                         { title: '私教课', value: 2,checked: true},
+                        { title: '培训课', value: 3, checked: false},
+                        { title: '会员卡', value: 1, checked: false}
+                    ];
+                }else{
+                     that.list=[
+                         { title: '私教课', value: 2,checked: true},
+                         { title: '会员卡', value: 1, checked: false}
+                    ];
+                }
+                 if(map.serverUrl==''||map.serverUrl==null||map.serverUrl==undefined){
+                  that.webHost='https://www.forzadata.cn';
+                }else{
+                  that.webHost=map.serverUrl;
+                }
             });
-            that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50;
+             if(that.isStudio){
+                that.usedType=1;
+            }
+            
             setTimeout(() => {
                 that.getmess();
             }, 50);
@@ -586,6 +614,12 @@ export default {
        },
         sunmitChange(){
             var that=this;
+             if(!that.depositPrice){
+                return  nativeMoudle.toast('请输入定金金额！');
+            }
+             if(!that.depositDay){
+                return  nativeMoudle.toast('请输入有效天数！');
+            }
             nativeMoudle.showProgressDialog();
             var URL = that.webHost+'/api/weex/deposit/'+that.centerId+'/'+that.traineeId;
             var arr=JSON.stringify({

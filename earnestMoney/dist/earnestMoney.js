@@ -78,7 +78,7 @@
 var _require = __webpack_require__(1),
     router = _require.router;
 
-var App = __webpack_require__(15);
+var App = __webpack_require__(19);
 /* eslint-disable no-new */
 new Vue(Vue.util.extend({ el: '#root', router: router }, App));
 router.push('/');
@@ -107,15 +107,17 @@ var _deposit = __webpack_require__(7);
 
 var _deposit2 = _interopRequireDefault(_deposit);
 
-var _edit = __webpack_require__(11);
+var _depositDetail = __webpack_require__(11);
+
+var _depositDetail2 = _interopRequireDefault(_depositDetail);
+
+var _edit = __webpack_require__(15);
 
 var _edit2 = _interopRequireDefault(_edit);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-/*global Vue*/
-Vue.use(_vueRouter2.default);
-
+Vue.use(_vueRouter2.default); /*global Vue*/
 var router = exports.router = new _vueRouter2.default({
   routes: [{
     path: '/',
@@ -125,6 +127,10 @@ var router = exports.router = new _vueRouter2.default({
     path: '/deposit/:id',
     name: 'deposit',
     component: _deposit2.default
+  }, {
+    path: '/depositDetail/:id',
+    name: 'depositDetail',
+    component: _depositDetail2.default
   }, {
     path: '/edit',
     name: 'edit',
@@ -3072,7 +3078,7 @@ module.exports = {
   },
   "nullBox": {
     "fontSize": "34",
-    "color": "#F5F5F5"
+    "color": "#ffffff"
   },
   "beforePage": {
     "width": "48",
@@ -4076,6 +4082,10 @@ Object.defineProperty(exports, "__esModule", {
 //
 //
 //
+//
+//
+//
+//
 
 var imageModule = weex.requireModule('image');
 var uploadModule = weex.requireModule('transfer');
@@ -4088,9 +4098,9 @@ exports.default = {
         return {
             isShow: false,
             height: '',
-            list: [{ title: '私教课', value: 2, checked: true }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }],
+            list: [],
             depositMess: '',
-            //   webHost:'http://10.0.0.12:9090',
+            //   webHost:'http://10.0.0.12:8080',
             webHost: 'https://www.forzadata.cn',
             traineeId: '1529520',
             photoArray: [],
@@ -4112,7 +4122,8 @@ exports.default = {
             usedType: '',
             payMess: '',
             isFinish: false,
-            qrCodeLink: ''
+            qrCodeLink: '',
+            isStudio: null
         };
     },
     created: function created() {
@@ -4122,9 +4133,30 @@ exports.default = {
             that.centerId = map.centerId;
             that.token = map.token;
             that.coachAPP = map.coachAPP;
+            that.isStudio = map.isStudio;
+            that.height = map.isPhoneBangseries ? 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 118 : 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+            if (map.allowTrainingCourse) {
+                that.list = [{ title: '私教课', value: 2, checked: true }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }];
+            } else {
+                that.list = [{ title: '私教课', value: 2, checked: true }, { title: '会员卡', value: 1, checked: false }];
+            }
+            if (map.serverUrl == '' || map.serverUrl == null || map.serverUrl == undefined) {
+                that.webHost = 'https://www.forzadata.cn';
+            } else {
+                that.webHost = map.serverUrl;
+            }
         });
+        if (that.isStudio) {
+            that.usedType = 1;
+        }
         nativeMoudle.showProgressDialog();
-        that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+        //  if(weex.config.env.platform=='iOS'){
+
+        //  }else{
+        //        that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50;
+        //  }
+
+
         setTimeout(function () {
             that.getmess();
         }, 50);
@@ -4148,6 +4180,12 @@ exports.default = {
         },
         sunmitChange: function sunmitChange() {
             var that = this;
+            if (!that.depositMoney) {
+                return nativeMoudle.toast('请输入定金金额！');
+            }
+            if (!that.depositDay) {
+                return nativeMoudle.toast('请输入有效天数！');
+            }
             nativeMoudle.showProgressDialog();
             var URL = that.webHost + '/api/weex/deposit/' + that.centerId + '/' + that.traineeId;
             var arr = JSON.stringify({
@@ -4201,13 +4239,18 @@ exports.default = {
                         if (ret.data.data == null) {
                             me.hasHandsels = false;
                             if (me.coachAPP) {
-                                me.usedType = 2;
+                                if (me.isStudio) {
+                                    me.usedType = 1;
+                                } else {
+                                    me.usedType = 2;
+                                }
                             } else {
                                 me.usedType = 1;
                             }
                         } else {
                             me.hasHandsels = true;
                             me.depositMess = ret.data.data;
+                            me.usedType = ret.data.data.usedType;
                         }
                     } else {
                         nativeMoudle.toast(ret.data.message);
@@ -4428,7 +4471,8 @@ exports.default = {
                         if (ret.data.data.paid) {
                             nativeMoudle.progressDialogDismiss();
                             setTimeout(function () {
-                                that.$router.push({ name: 'deposit', query: { id: ret.data.data.depositId } });
+                                //    that.$router.push({name:'deposit',query:{id:ret.data.data.depositId}});
+                                that.$router.push({ name: 'depositDetail', query: { id: ret.data.data.depositId } });
                             }, 1000);
                         } else {
                             nativeMoudle.progressDialogDismiss();
@@ -4485,7 +4529,10 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
   })]), _c('text', {
     staticClass: ["title"]
   }, [_vm._v("办理定金")]), (!_vm.hasHandsels) ? _c('text', {
-    staticClass: ["nullBox"]
+    staticStyle: {
+      fontSize: "34px",
+      color: "#ffffff"
+    }
   }, [_vm._v("保存")]) : _c('image', {
     staticClass: ["eidtPros"],
     attrs: {
@@ -4533,7 +4580,7 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     staticClass: ["messCon"]
   }, [_c('text', {
     staticClass: ["leftTxt"]
-  }, [_vm._v("定金类型")]), _c('div', {
+  }, [_vm._v("定金类型")]), (!_vm.isStudio) ? _c('div', {
     staticClass: ["rightBox"],
     on: {
       "click": _vm.selectCourseStyle
@@ -4545,7 +4592,16 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     attrs: {
       "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png"
     }
-  })])])]), _c('div', {
+  })]) : _vm._e(), (_vm.isStudio) ? _c('div', {
+    staticClass: ["rightBox"]
+  }, [_c('text', {
+    staticClass: ["courseType"]
+  }, [_vm._v("会员卡")]), _c('image', {
+    staticClass: ["rightIcon"],
+    attrs: {
+      "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png"
+    }
+  })]) : _vm._e()])]), _c('div', {
     staticClass: ["addItemBox"]
   }, [_c('text', {
     staticClass: ["warning"]
@@ -4783,9 +4839,9 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
   }, [_c('div', {
     staticClass: ["codeTitle"]
   }, [_c('text', {
-    staticClass: ["nullBox"],
     staticStyle: {
-      width: "32px"
+      width: "32px",
+      color: "F5F5F5"
     }
   }, [_vm._v("12")]), _c('text', {
     staticClass: ["payName"],
@@ -5302,7 +5358,7 @@ exports.default = {
             traineeId: '',
             centerId: '',
             token: '',
-            //  webHost:'http://10.0.0.116:8080',
+            //  webHost:'http://10.0.0.12:8080',
             webHost: 'https://www.forzadata.cn',
             traineePhone: '',
             serialNumBarCode: ''
@@ -5314,11 +5370,18 @@ exports.default = {
             that.traineeId = map.traineeId;
             that.centerId = map.centerId;
             that.token = map.token;
+            that.height = map.isPhoneBangseries ? 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 118 : 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+            if (map.serverUrl == '' || map.serverUrl == null || map.serverUrl == undefined) {
+                that.webHost = 'https://www.forzadata.cn';
+            } else {
+                that.webHost = map.serverUrl;
+            }
         });
         nativeMoudle.showProgressDialog();
-        that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+        // nativeMoudle.toast(that.$route.query.depositId);
+
         setTimeout(function () {
-            that.getmess(that.$route.query.id);
+            that.getmess(that.$route.query.depositId);
         }, 100);
         weex.requireModule('globalEvent').addEventListener('androidback', function (e) {
             nativeMoudle.close();
@@ -5391,7 +5454,10 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
   })]), _c('text', {
     staticClass: ["title"]
   }, [_vm._v("定金收据")]), _c('text', {
-    staticClass: ["nullBox"]
+    staticStyle: {
+      fontSize: "34px",
+      color: "#ffffff"
+    }
   }, [_vm._v("保存")])]), _c('div', {
     staticClass: ["depositBox"]
   }, [_c('div', {
@@ -5517,6 +5583,709 @@ __vue_options__ = __vue_exports__ = __vue_exports__.default
 if (typeof __vue_options__ === "function") {
   __vue_options__ = __vue_options__.options
 }
+__vue_options__.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\components\\depositDetail.vue"
+__vue_options__.render = __vue_template__.render
+__vue_options__.staticRenderFns = __vue_template__.staticRenderFns
+__vue_options__._scopeId = "data-v-43acfb4f"
+__vue_options__.style = __vue_options__.style || {}
+__vue_styles__.forEach(function (module) {
+  for (var name in module) {
+    __vue_options__.style[name] = module[name]
+  }
+})
+if (typeof __register_static_styles__ === "function") {
+  __register_static_styles__(__vue_options__._scopeId, __vue_styles__)
+}
+
+module.exports = __vue_exports__
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports) {
+
+module.exports = {
+  "bg": {
+    "backgroundColor": "rgba(0,0,0,0.6)",
+    "position": "absolute",
+    "left": 0,
+    "top": 0,
+    "width": "750",
+    "alignContent": "center",
+    "justifyContent": "center"
+  },
+  "previewPic": {
+    "width": "680",
+    "height": "650",
+    "marginLeft": "35"
+  },
+  "listBox": {
+    "backgroundColor": "#ffffff"
+  },
+  "headers": {
+    "width": "750",
+    "height": "88",
+    "paddingLeft": "30",
+    "paddingRight": "40",
+    "flexDirection": "row",
+    "justifyContent": "space-between",
+    "alignItems": "center",
+    "backgroundColor": "#ffffff",
+    "borderBottomColor": "#f6f6ff",
+    "borderBottomStyle": "solid",
+    "borderBottomWidth": "1"
+  },
+  "returnImg": {
+    "width": "100",
+    "height": "80",
+    "flexDirection": "row",
+    "alignItems": "center"
+  },
+  "title": {
+    "fontSize": "34",
+    "color": "#53575A"
+  },
+  "nullBox": {
+    "fontSize": "34",
+    "color": "#ffffff"
+  },
+  "beforePage": {
+    "width": "48",
+    "height": "48"
+  },
+  "detailBox": {
+    "paddingLeft": "30",
+    "paddingRight": "30"
+  },
+  "memberMess": {
+    "height": "180",
+    "flexDirection": "row",
+    "alignItems": "center",
+    "borderBottomColor": "#f6f6ff",
+    "borderBottomStyle": "solid",
+    "borderBottomWidth": "1",
+    "marginBottom": "40"
+  },
+  "avatar": {
+    "width": "80",
+    "marginRight": "20",
+    "height": "80",
+    "borderRadius": "100"
+  },
+  "avatarIcon": {
+    "width": "80",
+    "height": "80",
+    "borderRadius": "100"
+  },
+  "messBox": {
+    "width": "590",
+    "flexDirection": "row",
+    "alignItems": "center",
+    "justifyContent": "space-between"
+  },
+  "name": {
+    "color": "#303030",
+    "fontSize": "30"
+  },
+  "phone": {
+    "color": "#303030",
+    "fontSize": "28"
+  },
+  "price": {
+    "flexDirection": "row",
+    "alignItems": "center"
+  },
+  "detailItem": {
+    "flexDirection": "row",
+    "marginBottom": "20"
+  },
+  "itemName": {
+    "color": "#888888",
+    "fontSize": "28",
+    "marginRight": "42",
+    "width": "120"
+  },
+  "itemContent": {
+    "color": "#2E3D50",
+    "fontSize": "28",
+    "width": "460"
+  },
+  "protocolBox": {
+    "borderTopColor": "#f6f6ff",
+    "borderTopStyle": "solid",
+    "borderTopWidth": "1",
+    "marginTop": "20",
+    "paddingTop": "40"
+  },
+  "protocolTitle": {
+    "color": "#888888",
+    "fontSize": "28",
+    "marginBottom": "20"
+  },
+  "imgBox": {
+    "flexDirection": "row",
+    "alignItems": "center"
+  },
+  "protocolImg": {
+    "width": "160",
+    "height": "160",
+    "marginRight": "20"
+  },
+  "checkOrder": {
+    "width": "750",
+    "height": "88",
+    "textAlign": "center",
+    "lineHeight": "88",
+    "backgroundColor": "#12C48B",
+    "color": "#ffffff",
+    "fontSize": "30",
+    "position": "absolute",
+    "bottom": 0
+  }
+}
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
+var nativeMoudle = weex.requireModule('nativeModule');
+var storage = weex.requireModule("storage");
+var stream = weex.requireModule('stream');
+exports.default = {
+    data: function data() {
+        return {
+            height: '',
+            depositId: '',
+            //   webHost:'http://10.0.0.12:8080',
+            webHost: 'https://www.forzadata.cn',
+            token: 'eyJuYW1lIjoi546L6JaHIiwicGhvbmUiOiIxNzY4MjMwNjYwMSIsImFjY291bnRJZCI6Nzk4MzksImltcGVyc29uYXRlZCI6ZmFsc2V9./820YzcQ7Eqx6EEnYAngCzuQjr3gtRjOzXtxb1tzXaA=',
+            traineePhoto: '',
+            traineeName: '',
+            traineePhone: '',
+            amount: '',
+            status: '',
+            usedType: '',
+            contractSerialNum: '',
+            payDate: '',
+            expireDate: '',
+            protocolPhotos: [],
+            comment: '',
+            payMethod: '',
+            payMethod2: '',
+            receiptUrl: '',
+            duration: '',
+            centerId: '',
+            isPreview: false,
+            previewImg: '',
+            traineeId: ''
+        };
+    },
+    created: function created() {
+        var that = this;
+
+        that.depositId = JSON.stringify(that.$route.query.id);
+        nativeMoudle.getMetaData(function (map) {
+            that.centerId = map.centerId;
+            that.token = map.token;
+            if (map.serverUrl == '' || map.serverUrl == null || map.serverUrl == undefined) {
+                that.webHost = 'https://www.forzadata.cn';
+            } else {
+                that.webHost = map.serverUrl;
+            }
+            that.height = map.isPhoneBangseries ? 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 118 : 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+        });
+        nativeMoudle.showProgressDialog();
+
+        setTimeout(function () {
+            that.getDetail();
+        }, 50);
+        weex.requireModule('globalEvent').addEventListener('androidback', function (e) {
+            this.$router.go(-1);
+        });
+    },
+
+    methods: {
+        enlargePic: function enlargePic(item) {
+            // nativeMoudle.toast('pic')
+            this.isPreview = true;
+            this.previewImg = item;
+        },
+        hidePreview: function hidePreview() {
+            this.isPreview = false;
+        },
+        beforePage: function beforePage() {
+            this.$router.go(-1);
+        },
+        getDetail: function getDetail() {
+            var that = this;
+            stream.fetch({
+                method: 'GET',
+                url: that.webHost + '/api/weex/deposit/' + that.centerId + '/' + that.depositId + '/detail',
+                type: 'json',
+                headers: {
+                    "Content-Type": 'application/json',
+                    'X-AUTH-TOKEN': that.token
+                }
+            }, function (ret) {
+                if (ret.ok) {
+                    if (ret.data.status == 0) {
+                        that.traineeId = ret.data.data.traineeId;
+                        that.traineePhoto = ret.data.data.traineePhoto;
+                        that.traineeName = ret.data.data.traineeName;
+                        that.traineePhone = ret.data.data.traineePhone;
+                        that.amount = ret.data.data.amount;
+                        that.status = ret.data.data.status;
+                        that.usedType = ret.data.data.usedType;
+                        that.contractSerialNum = ret.data.data.serialNum;
+                        that.payDate = ret.data.data.payDate;
+                        that.expireDate = ret.data.data.expireDate;
+                        that.receiptUrl = ret.data.data.receiptUrl;
+                        if (ret.data.data.protocolPhotos) {
+                            that.protocolPhotos = ret.data.data.protocolPhotos;
+                        }
+                        if (ret.data.data.payMethod) {
+                            that.payMethod = ret.data.data.payMethod;
+                        }
+                        if (ret.data.data.payMethod2) {
+                            that.payMethod2 = ret.data.data.payMethod2;
+                        }
+                        that.comment = ret.data.data.comment;
+                        that.duration = ret.data.data.duration;
+                    } else {
+                        nativeMoudle.toast(ret.data.message);
+                    }
+                    nativeMoudle.progressDialogDismiss();
+                } else {
+                    nativeMoudle.toast('网络错误！');
+                }
+            }, function (response) {});
+        },
+        toDetail: function toDetail() {
+            var that = this;
+            //   nativeMoudle.toast(that.depositId);
+            that.$router.push({ name: 'deposit', query: { depositId: that.depositId } });
+        },
+        showMember: function showMember() {
+            nativeMoudle.goToTraineeDetail(this.traineeId);
+        }
+    }
+};
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports) {
+
+module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;
+  return _c('div', {
+    staticClass: ["listBox"],
+    style: {
+      height: _vm.height
+    }
+  }, [_c('div', {
+    staticClass: ["headers"]
+  }, [_c('div', {
+    staticClass: ["returnImg"],
+    on: {
+      "click": _vm.beforePage
+    }
+  }, [_c('image', {
+    staticClass: ["beforePage"],
+    attrs: {
+      "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/return.png"
+    }
+  })]), _c('text', {
+    staticClass: ["title"]
+  }, [_vm._v("定金详情")]), _c('text', {
+    staticStyle: {
+      fontSize: "34px",
+      color: "#ffffff"
+    }
+  }, [_vm._v("保存")])]), _c('list', {
+    staticClass: ["listBox"],
+    style: {
+      height: _vm.height - 180
+    }
+  }, [_c('cell', {
+    appendAsTree: true,
+    attrs: {
+      "append": "tree"
+    }
+  }, [_c('div', {
+    staticClass: ["detailBox"]
+  }, [_c('div', {
+    staticClass: ["memberMess"],
+    on: {
+      "click": _vm.showMember
+    }
+  }, [_c('div', {
+    staticClass: ["avatar"]
+  }, [_c('image', {
+    staticClass: ["avatarIcon"],
+    attrs: {
+      "src": _vm.traineePhoto ? _vm.traineePhoto : 'https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/defaultAvata.png'
+    }
+  })]), _c('div', {
+    staticClass: ["messBox"]
+  }, [_c('div', {
+    staticClass: ["leftBox"]
+  }, [_c('text', {
+    staticClass: ["name"]
+  }, [_vm._v(_vm._s(_vm.traineeName))]), _c('text', {
+    staticClass: ["phone"]
+  }, [_vm._v(_vm._s(_vm.traineePhone))])]), _c('div', {
+    staticClass: ["price"]
+  }, [_c('text', {
+    staticStyle: {
+      color: "#E7541E",
+      fontSize: "28px"
+    }
+  }, [_vm._v("¥ ")]), _c('text', {
+    staticStyle: {
+      color: "#E7541E",
+      fontSize: "36px"
+    }
+  }, [_vm._v(_vm._s(_vm.amount))])])])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("当前状态")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.status))])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("定金类型")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.usedType) + "定金")])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("定金编号")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.contractSerialNum))])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("收款时间")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.payDate))])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("支付方式")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.payMethod ? _vm.payMethod : '') + _vm._s(_vm.payMethod2 ? '、' + _vm.payMethod2 : ''))])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("有效天数")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.duration) + "天")])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("到期日")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.expireDate))])]), _c('div', {
+    staticClass: ["detailItem"]
+  }, [_c('text', {
+    staticClass: ["itemName"]
+  }, [_vm._v("备注")]), _c('text', {
+    staticClass: ["itemContent"]
+  }, [_vm._v(_vm._s(_vm.comment || '暂无备注'))])]), _c('div', {
+    staticClass: ["protocolBox"]
+  }, [_c('text', {
+    staticClass: ["protocolTitle"]
+  }, [_vm._v("定金协议")]), (_vm.protocolPhotos.length != 0) ? _c('div', {
+    staticClass: ["imgBox"]
+  }, _vm._l((_vm.protocolPhotos), function(item, index) {
+    return _c('image', {
+      key: index,
+      staticClass: ["protocolImg"],
+      attrs: {
+        "src": item
+      },
+      on: {
+        "click": function($event) {
+          _vm.enlargePic(item)
+        }
+      }
+    })
+  })) : _c('text', {
+    staticClass: ["protocolTitle"],
+    staticStyle: {
+      marginLeft: "30px"
+    }
+  }, [_vm._v("暂无协议图片")])])])])]), _c('text', {
+    staticClass: ["checkOrder"],
+    on: {
+      "click": _vm.toDetail
+    }
+  }, [_vm._v("查看收据")]), (_vm.isPreview) ? _c('div', {
+    staticClass: ["bg"],
+    style: {
+      height: _vm.height
+    },
+    on: {
+      "click": _vm.hidePreview
+    }
+  }, [_c('image', {
+    staticClass: ["previewPic"],
+    attrs: {
+      "src": _vm.previewImg
+    }
+  })]) : _vm._e()])
+},staticRenderFns: []}
+module.exports.render._withStripped = true
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __vue_exports__, __vue_options__
+var __vue_styles__ = []
+
+/* styles */
+__vue_styles__.push(__webpack_require__(16)
+)
+
+/* script */
+__vue_exports__ = __webpack_require__(17)
+
+/* template */
+var __vue_template__ = __webpack_require__(18)
+__vue_options__ = __vue_exports__ = __vue_exports__ || {}
+if (
+  typeof __vue_exports__.default === "object" ||
+  typeof __vue_exports__.default === "function"
+) {
+if (Object.keys(__vue_exports__).some(function (key) { return key !== "default" && key !== "__esModule" })) {console.error("named exports are not supported in *.vue files.")}
+__vue_options__ = __vue_exports__ = __vue_exports__.default
+}
+if (typeof __vue_options__ === "function") {
+  __vue_options__ = __vue_options__.options
+}
 __vue_options__.__file = "F:\\weex项目\\办理定金\\earnestMoney\\src\\components\\edit.vue"
 __vue_options__.render = __vue_template__.render
 __vue_options__.staticRenderFns = __vue_template__.staticRenderFns
@@ -5535,7 +6304,7 @@ module.exports = __vue_exports__
 
 
 /***/ }),
-/* 12 */
+/* 16 */
 /***/ (function(module, exports) {
 
 module.exports = {
@@ -5897,7 +6666,7 @@ module.exports = {
 }
 
 /***/ }),
-/* 13 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5906,6 +6675,10 @@ module.exports = {
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
+//
+//
+//
+//
 //
 //
 //
@@ -6371,7 +7144,7 @@ exports.default = {
             isShow: false,
             height: '',
             list: [{ title: '私教课', value: 2, checked: false }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }],
-            //  webHost:'http://10.0.0.116:8080',
+            //  webHost:'http://10.0.0.12:8080',
             webHost: 'https://www.forzadata.cn',
             traineeId: '1529520',
             photoArray: [],
@@ -6389,7 +7162,9 @@ exports.default = {
             componentVisibility: 'visible',
             depositId: null,
             isDelete: false,
-            coachAPP: true
+            coachAPP: true,
+            isStudio: true,
+            isPhoneBangseries: false
 
         };
     },
@@ -6400,8 +7175,23 @@ exports.default = {
             that.centerId = map.centerId;
             that.token = map.token;
             that.coachAPP = map.coachAPP;
+            that.isStudio = map.isStudio;
+            that.height = map.isPhoneBangseries ? 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 118 : 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+            if (map.allowTrainingCourse) {
+                that.list = [{ title: '私教课', value: 2, checked: true }, { title: '培训课', value: 3, checked: false }, { title: '会员卡', value: 1, checked: false }];
+            } else {
+                that.list = [{ title: '私教课', value: 2, checked: true }, { title: '会员卡', value: 1, checked: false }];
+            }
+            if (map.serverUrl == '' || map.serverUrl == null || map.serverUrl == undefined) {
+                that.webHost = 'https://www.forzadata.cn';
+            } else {
+                that.webHost = map.serverUrl;
+            }
         });
-        that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight - 50;
+        if (that.isStudio) {
+            that.usedType = 1;
+        }
+
         setTimeout(function () {
             that.getmess();
         }, 50);
@@ -6490,6 +7280,12 @@ exports.default = {
         },
         sunmitChange: function sunmitChange() {
             var that = this;
+            if (!that.depositPrice) {
+                return nativeMoudle.toast('请输入定金金额！');
+            }
+            if (!that.depositDay) {
+                return nativeMoudle.toast('请输入有效天数！');
+            }
             nativeMoudle.showProgressDialog();
             var URL = that.webHost + '/api/weex/deposit/' + that.centerId + '/' + that.traineeId;
             var arr = JSON.stringify({
@@ -6668,7 +7464,7 @@ exports.default = {
 };
 
 /***/ }),
-/* 14 */
+/* 18 */
 /***/ (function(module, exports) {
 
 module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;
@@ -6740,7 +7536,7 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     staticClass: ["messCon"]
   }, [_c('text', {
     staticClass: ["leftTxt"]
-  }, [_vm._v("定金类型")]), _c('div', {
+  }, [_vm._v("定金类型")]), (!_vm.isStudio) ? _c('div', {
     staticClass: ["rightBox"],
     on: {
       "click": _vm.selectCourseStyle
@@ -6752,7 +7548,16 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
     attrs: {
       "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png"
     }
-  })])])]), _c('div', {
+  })]) : _vm._e(), (_vm.isStudio) ? _c('div', {
+    staticClass: ["rightBox"]
+  }, [_c('text', {
+    staticClass: ["courseType"]
+  }, [_vm._v("会员卡")]), _c('image', {
+    staticClass: ["rightIcon"],
+    attrs: {
+      "src": "https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png"
+    }
+  })]) : _vm._e()])]), _c('div', {
     staticClass: ["addItemBox"]
   }, [_c('text', {
     staticClass: ["warning"]
@@ -6921,21 +7726,21 @@ module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c
 module.exports.render._withStripped = true
 
 /***/ }),
-/* 15 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __vue_exports__, __vue_options__
 var __vue_styles__ = []
 
 /* styles */
-__vue_styles__.push(__webpack_require__(16)
+__vue_styles__.push(__webpack_require__(20)
 )
 
 /* script */
-__vue_exports__ = __webpack_require__(17)
+__vue_exports__ = __webpack_require__(21)
 
 /* template */
-var __vue_template__ = __webpack_require__(18)
+var __vue_template__ = __webpack_require__(22)
 __vue_options__ = __vue_exports__ = __vue_exports__ || {}
 if (
   typeof __vue_exports__.default === "object" ||
@@ -6965,13 +7770,13 @@ module.exports = __vue_exports__
 
 
 /***/ }),
-/* 16 */
+/* 20 */
 /***/ (function(module, exports) {
 
 module.exports = {}
 
 /***/ }),
-/* 17 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -6997,7 +7802,7 @@ exports.default = {
 };
 
 /***/ }),
-/* 18 */
+/* 22 */
 /***/ (function(module, exports) {
 
 module.exports={render:function (){var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;

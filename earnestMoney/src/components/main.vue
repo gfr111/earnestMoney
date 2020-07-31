@@ -5,7 +5,7 @@
               <image src="https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/return.png" class="beforePage"/>
             </div>
             <text class="title">办理定金</text>
-            <text class="nullBox" v-if="!hasHandsels">保存</text>
+            <text style="font-size:34px;color: #ffffff;" v-if="!hasHandsels">保存</text>
             <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/editPro.png' class="eidtPros" v-else  @click="edit"/>
         </div>
         <div class="addContent" v-if="!hasHandsels">
@@ -23,8 +23,12 @@
                     <text class="warning">*</text>
                     <div class="messCon">                              
                       <text class="leftTxt">定金类型</text>   
-                      <div class="rightBox" @click="selectCourseStyle">
+                      <div class="rightBox" @click="selectCourseStyle" v-if="!isStudio">
                         <text class="courseType">{{usedType==1?'会员卡':usedType==2?'私教课':'培训课'}}</text>
+                        <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png' class="rightIcon" />
+                      </div>  
+                       <div class="rightBox" v-if="isStudio">
+                        <text class="courseType">会员卡</text>
                         <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/blackRight.png' class="rightIcon" />
                       </div>       
                   </div>
@@ -130,7 +134,7 @@
            <div class="codeBox">
                <div class="qrCodeTop">
                    <div class="codeTitle">
-                        <text class="nullBox" style=" width: 32px;">12</text>
+                        <text  style=" width: 32px;color:F5F5F5;">12</text>
                         <text class="payName" style="font-size:36px;">扫码支付</text>
                         <image src='https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/greyCancel.png' class="hidePayBtn" @click="hidePaycode"/>
                     </div>
@@ -204,7 +208,7 @@
 }
 .nullBox{
   font-size:34px;
-  color: #F5F5F5;
+  color: #ffffff;
 }
 .beforePage{
     width: 48px;
@@ -447,8 +451,8 @@ height: 32px;;
     font-size: 30px;
   }
   .messContent{
-    color: #2E3D50;
-    font-size: 30px;
+     color: #2E3D50;
+     font-size: 30px;
   }
   .procotolMess{
     border-top-color:#E1E1E1;
@@ -610,11 +614,9 @@ export default {
       data: () => ({
           isShow: false,
           height:'',
-          list: [  { title: '私教课', value: 2,checked: true},
-                   { title: '培训课', value: 3, checked: false},
-                   { title: '会员卡', value: 1, checked: false}],
+          list: [],
           depositMess:'',    
-        //   webHost:'http://10.0.0.12:9090',
+        //   webHost:'http://10.0.0.12:8080',
           webHost:'https://www.forzadata.cn',
           traineeId:'1529520',
           photoArray:[],
@@ -636,7 +638,8 @@ export default {
           usedType:'',
           payMess:'',
           isFinish:false,
-          qrCodeLink:''
+          qrCodeLink:'',
+          isStudio:null
       }),
        created(){
               var that=this;      
@@ -645,9 +648,37 @@ export default {
                 that.centerId=map.centerId;
                 that.token=map.token;
                 that.coachAPP=map.coachAPP;
+                that.isStudio=map.isStudio;
+                that.height = map.isPhoneBangseries? (750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-118):(750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50);  
+                if(map.allowTrainingCourse){
+                    that.list=[
+                         { title: '私教课', value: 2,checked: true},
+                        { title: '培训课', value: 3, checked: false},
+                        { title: '会员卡', value: 1, checked: false}
+                    ];
+                }else{
+                     that.list=[
+                         { title: '私教课', value: 2,checked: true},
+                        { title: '会员卡', value: 1, checked: false}
+                    ];
+                }
+                if(map.serverUrl==''||map.serverUrl==null||map.serverUrl==undefined){
+                  that.webHost='https://www.forzadata.cn';
+                }else{
+                  that.webHost=map.serverUrl;
+                }
             });
+            if(that.isStudio){
+                that.usedType=1;
+            }
             nativeMoudle.showProgressDialog();
-            that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50;
+            //  if(weex.config.env.platform=='iOS'){
+                  
+            //  }else{
+            //        that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50;
+            //  }
+            
+  
             setTimeout(() => {
                 that.getmess();
             }, 50);
@@ -670,6 +701,12 @@ export default {
         },
         sunmitChange(){
             var that=this;
+            if(!that.depositMoney){
+                return  nativeMoudle.toast('请输入定金金额！');
+            }
+             if(!that.depositDay){
+                return  nativeMoudle.toast('请输入有效天数！');
+            }
             nativeMoudle.showProgressDialog();
             var URL = that.webHost+'/api/weex/deposit/'+that.centerId+'/'+that.traineeId;
             var arr=JSON.stringify({
@@ -723,15 +760,20 @@ export default {
                  nativeMoudle.progressDialogDismiss();
                 if(ret.data.status==0){
                     if(ret.data.data==null){
-                         me.hasHandsels=false;
-                         if(me.coachAPP){
-                             me.usedType=2;
+                         me.hasHandsels=false;                      
+                         if(me.coachAPP){                         
+                             if(me.isStudio){
+                                 me.usedType=1; 
+                             }else{
+                                 me.usedType=2;
+                             }
                          }else{
                              me.usedType=1;
                          }
                     }else{
                         me.hasHandsels=true;
-                        me.depositMess=ret.data.data;
+                        me.depositMess=ret.data.data;         
+                        me.usedType=ret.data.data.usedType;  
                     }
                 }else{
                    nativeMoudle.toast(ret.data.message);
@@ -957,7 +999,8 @@ export default {
                if(ret.data.data.paid){ 
                    nativeMoudle.progressDialogDismiss();                         
                     setTimeout(()=>{
-                       that.$router.push({name:'deposit',query:{id:ret.data.data.depositId}});
+                    //    that.$router.push({name:'deposit',query:{id:ret.data.data.depositId}});
+                      that.$router.push({name:'depositDetail',query:{id:ret.data.data.depositId}});  
                     },1000)
                }else{
                    nativeMoudle.progressDialogDismiss();

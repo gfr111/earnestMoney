@@ -5,7 +5,7 @@
               <image src="https://bocai-center.oss-cn-hangzhou.aliyuncs.com/center_manager/static_img/return.png" class="returnIcon"/>
             </div>
             <text class="title">定金收据</text>
-            <text class="nullBox">保存</text>
+            <text  style="font-size:34px;color: #ffffff;">保存</text>
         </div>
         <div class="depositBox">
             <div class="centerMess">
@@ -211,7 +211,7 @@ export default {
          traineeId:'',
          centerId:'',
          token:'',
-        //  webHost:'http://10.0.0.116:8080',
+        //  webHost:'http://10.0.0.12:8080',
         webHost:'https://www.forzadata.cn',
          traineePhone:'',
          serialNumBarCode:''
@@ -222,11 +222,18 @@ export default {
                 that.traineeId=map.traineeId;
                 that.centerId=map.centerId;
                 that.token=map.token;
+                that.height = map.isPhoneBangseries? (750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-118):(750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50);           
+                if(map.serverUrl==''||map.serverUrl==null||map.serverUrl==undefined){
+                  that.webHost='https://www.forzadata.cn';
+                }else{
+                  that.webHost=map.serverUrl;
+                }
             });
             nativeMoudle.showProgressDialog();
-            that.height = 750 / weex.config.env.deviceWidth * weex.config.env.deviceHeight-50;
+            // nativeMoudle.toast(that.$route.query.depositId);
+            
             setTimeout(() => {
-               that.getmess(that.$route.query.id);
+               that.getmess(that.$route.query.depositId);
             }, 100);
              weex.requireModule('globalEvent').addEventListener('androidback', function (e) {  
                 nativeMoudle.close();
